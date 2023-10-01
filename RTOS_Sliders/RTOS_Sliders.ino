@@ -49,26 +49,27 @@
 #define WHITE 0xFFFF
 
 //Sliders
-#define Slider_Right_X 40
-#define Slider1_Y 40
-#define Slider2_Y 92
-#define Slider3_Y 142
+#define SliderX_Right 40
+#define SliderX_Left 200
+#define SliderY_1 40
+#define SliderY_2 92
+#define SliderY_3 142
 
-#define Slider_W 220
-#define Slider_H 5
+#define Slider_Width 220
+#define Slider_Height 5
 
 
 //thumbs
 #define Thumb_H 40
 #define Thumb_W 25
 
-#define Thumb1_Y Slider1_Y - Thumb_H / 2
-#define Thumb2_Y Slider2_Y - Thumb_H / 2
-#define Thumb3_Y Slider3_Y - Thumb_H / 2
+#define Thumb1_Y SliderY_1 - Thumb_H / 2
+#define Thumb2_Y SliderY_2 - Thumb_H / 2
+#define Thumb3_Y SliderY_3 - Thumb_H / 2
 
-int Thumb1_X = Slider_Right_X - Thumb_W;
-int Thumb2_X = Slider_Right_X - Thumb_W;
-int Thumb3_X = Slider_Right_X - Thumb_W;
+int Thumb1_X = SliderX_Right - Thumb_W;
+int Thumb2_X = SliderX_Right - Thumb_W;
+int Thumb3_X = SliderX_Right - Thumb_W;
 double currentAngle;
 int currentLED = 0;
 const int numLEDs = 3;
@@ -101,8 +102,8 @@ SemaphoreHandle_t I2CSemaphore;
 const int buttonPin = 2;
 
 int sliderValue = 0;
-int s1x = Slider_Right_X, s1y, s2x = Slider_Right_X, s2y, s3x = Slider_Right_X, s3y;
-int x1 = Slider_Right_X, x2 = Slider_Right_X, x3 = Slider_Right_X;
+int s1x = SliderX_Right, s1y, s2x = SliderX_Right, s2y, s3x = SliderX_Right, s3y;
+int x1 = SliderX_Right, x2 = SliderX_Right, x3 = SliderX_Right;
 
 char sliderValueStr[5];
 
@@ -132,9 +133,9 @@ void drawFrame() {
 
 void pageOne() {
   tft.fillScreen(ILI9341_BLACK);
-  sliderLabelHandler(Slider1_Y, Thumb1_Y, s1x, x1, 1);
-  sliderLabelHandler(Slider2_Y, Thumb2_Y, s2x, x2, 2);
-  sliderLabelHandler(Slider3_Y, Thumb3_Y, s3x, x3, 3);
+  sliderLabelHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
+  sliderLabelHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
+  sliderLabelHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
   //Serial.println(pageNum);
   currColor = ILI9341_BLACK;
 }
@@ -191,7 +192,7 @@ void setLabelValue(int value, int slider) {
   switch (slider) {
     case 1:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider1_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_1 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -199,7 +200,7 @@ void setLabelValue(int value, int slider) {
       break;
     case 2:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider2_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_2 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -207,7 +208,7 @@ void setLabelValue(int value, int slider) {
       break;
     case 3:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider3_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -215,7 +216,7 @@ void setLabelValue(int value, int slider) {
       break;
     case 4:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider3_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -223,7 +224,7 @@ void setLabelValue(int value, int slider) {
       break;
     case 5:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider3_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -231,7 +232,7 @@ void setLabelValue(int value, int slider) {
       break;
     case 6:
       sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(Slider_Right_X + Slider_W + 10, Slider3_Y - 5);
+      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
       tft.setTextColor(WHITE);
       tft.setTextColor(WHITE, BLACK);
       tft.setTextSize(2);
@@ -241,14 +242,14 @@ void setLabelValue(int value, int slider) {
 }
 
 void sliderLabelHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
-  sliderValue = x - Slider_Right_X;  //(x-tft.width()) + (Slider_Right_X+Slider_W-Thumb_W);
+  sliderValue = x - SliderX_Right;  //(x-tft.width()) + (SliderX_Right+Slider_Width-Thumb_W);
   if (sliderValue < 0) sliderValue = 0;
   setLabelValue(sliderValue, slider);
   // erase previous thumb by redrawing with background color
   tft.drawRect(x1, Thumb_Y, Thumb_W, Thumb_H, BLACK);
   // then draw new thumb
   tft.drawRect(x, Thumb_Y, Thumb_W, Thumb_H, WHITE);
-  tft.fillRoundRect(Slider_Right_X, sliderYPos, Slider_W, Slider_H, 2, RED);
+  tft.fillRoundRect(SliderX_Right, sliderYPos, Slider_Width, Slider_Height, 2, RED);
 }
 
 
@@ -337,47 +338,47 @@ void dataDisplayTask3(void* pvParameters) {
 
 void mainSliderHandler(int pX, int pY) {
   // slider1 handling
-  if (pX > Slider_Right_X && pX < (Slider_Right_X + Slider_W + Thumb_W)) {
+  if (pX > SliderX_Right && pX < (SliderX_Right + Slider_Width + Thumb_W)) {
     if (pY > Thumb1_Y && pY < (Thumb1_Y + Thumb_H)) {
       s1x = pX;
       s1y = pY;
       Thumb1_X = s1x - Thumb_W / 2;
-      if (Thumb1_X < Slider_Right_X) {
-        s1x = Slider_Right_X;
-      } else if ((Thumb1_X + Thumb_W) > (Slider_Right_X + Slider_W)) {
-        s1x = (Slider_Right_X + Slider_W) - Thumb_W;
+      if (Thumb1_X < SliderX_Right) {
+        s1x = SliderX_Right;
+      } else if ((Thumb1_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
+        s1x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(Slider1_Y, Thumb1_Y, s1x, x1, 1);
+      sliderLabelHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
       x1 = s1x;
     }
   }
   //Slider 2 Handling
-  if (pX > Slider_Right_X && pX < (Slider_Right_X + Slider_W + Thumb_W)) {
+  if (pX > SliderX_Right && pX < (SliderX_Right + Slider_Width + Thumb_W)) {
     if (pY > Thumb2_Y && pY < (Thumb2_Y + Thumb_H)) {
       s2x = pX;
       s2y = pY;
       Thumb2_X = s2x - Thumb_W / 2;
-      if (Thumb2_X < Slider_Right_X) {
-        s2x = Slider_Right_X;
-      } else if ((Thumb2_X + Thumb_W) > (Slider_Right_X + Slider_W)) {
-        s2x = (Slider_Right_X + Slider_W) - Thumb_W;
+      if (Thumb2_X < SliderX_Right) {
+        s2x = SliderX_Right;
+      } else if ((Thumb2_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
+        s2x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(Slider2_Y, Thumb2_Y, s2x, x2, 2);
+      sliderLabelHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
       x2 = s2x;
     }
   }
   //Slider 3 Handling
-  if (pX > Slider_Right_X && pX < (Slider_Right_X + Slider_W + Thumb_W)) {
+  if (pX > SliderX_Right && pX < (SliderX_Right + Slider_Width + Thumb_W)) {
     if (pY > Thumb3_Y && pY < (Thumb3_Y + Thumb_H)) {
       s3x = pX;
       s3y = pY;
       Thumb3_X = s3x - Thumb_W / 2;
-      if (Thumb3_X < Slider_Right_X) {
-        s3x = Slider_Right_X;
-      } else if ((Thumb3_X + Thumb_W) > (Slider_Right_X + Slider_W)) {
-        s3x = (Slider_Right_X + Slider_W) - Thumb_W;
+      if (Thumb3_X < SliderX_Right) {
+        s3x = SliderX_Right;
+      } else if ((Thumb3_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
+        s3x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(Slider3_Y, Thumb3_Y, s3x, x3, 3);
+      sliderLabelHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
       x3 = s3x;
     }
   }
