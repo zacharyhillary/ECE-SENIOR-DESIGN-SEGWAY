@@ -50,13 +50,22 @@
 
 //Sliders
 #define SliderX_Right 40
-#define SliderX_Left 200
+#define SliderX_Left 240
 #define SliderY_1 40
 #define SliderY_2 92
 #define SliderY_3 142
 
 #define Slider_Width 220
 #define Slider_Height 5
+
+// Labels
+int sliderLeftOne = 0;
+int sliderLeftTwo = 0;
+int sliderLeftThree = 0;
+int sliderRightOne = 200;
+int sliderRightTwo = 200;
+int sliderRightThree = 200;
+
 
 
 //thumbs
@@ -133,9 +142,10 @@ void drawFrame() {
 
 void pageOne() {
   tft.fillScreen(ILI9341_BLACK);
-  sliderLabelHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
-  sliderLabelHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
-  sliderLabelHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
+  mainLabelHandler();
+  sliderHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
+  sliderHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
+  sliderHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
   //Serial.println(pageNum);
   currColor = ILI9341_BLACK;
 }
@@ -189,62 +199,52 @@ void buttonInterrupt() {
 // x position of the slider
 void setLabelValue(int value, int slider) {
   //Serial.println("Show Slider Value");
+  int sliderX;
+  int sliderY;
   switch (slider) {
-    case 1:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_1 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    case 1: {
+      sliderX = SliderX_Right;
+      sliderY = SliderY_1;
       break;
-    case 2:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_2 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    }
+    case 2: {
+      sliderX = SliderX_Right;
+      sliderY = SliderY_2;
       break;
-    case 3:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    }
+    case 3: {
+      sliderX = SliderX_Right;
+      sliderY = SliderY_3;
       break;
-    case 4:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    }
+    case 4: {
+      sliderX = SliderX_Left;
+      sliderY = SliderY_1 - 15;
       break;
-    case 5:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    }
+    case 5: {
+      sliderX = SliderX_Left;
+      sliderY = SliderY_2 - 15;
       break;
-    case 6:
-      sprintf(sliderValueStr, "%03d", value);
-      tft.setCursor(SliderX_Right + Slider_Width + 10, SliderY_3 - 5);
-      tft.setTextColor(WHITE);
-      tft.setTextColor(WHITE, BLACK);
-      tft.setTextSize(2);
-      tft.print(sliderValueStr);
+    }
+    case 6: {
+      sliderX = SliderX_Left;
+      sliderY = SliderY_3 - 15;
       break;
+    }
   }
+  sprintf(sliderValueStr, "%03d", value);
+  tft.setCursor(sliderX + Slider_Width + 10, sliderY - 5);
+  tft.setTextColor(WHITE);
+  tft.setTextColor(WHITE, BLACK);
+  tft.setTextSize(2);
+  tft.print(sliderValueStr);
 }
 
-void sliderLabelHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
+void sliderHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
   sliderValue = x - SliderX_Right;  //(x-tft.width()) + (SliderX_Right+Slider_Width-Thumb_W);
   if (sliderValue < 0) sliderValue = 0;
-  setLabelValue(sliderValue, slider);
+  // setLabelValue(sliderValue, slider);
   // erase previous thumb by redrawing with background color
   tft.drawRect(x1, Thumb_Y, Thumb_W, Thumb_H, BLACK);
   // then draw new thumb
@@ -348,7 +348,7 @@ void mainSliderHandler(int pX, int pY) {
       } else if ((Thumb1_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
         s1x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
+      sliderHandler(SliderY_1, Thumb1_Y, s1x, x1, 1);
       x1 = s1x;
     }
   }
@@ -363,7 +363,7 @@ void mainSliderHandler(int pX, int pY) {
       } else if ((Thumb2_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
         s2x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
+      sliderHandler(SliderY_2, Thumb2_Y, s2x, x2, 2);
       x2 = s2x;
     }
   }
@@ -378,13 +378,19 @@ void mainSliderHandler(int pX, int pY) {
       } else if ((Thumb3_X + Thumb_W) > (SliderX_Right + Slider_Width)) {
         s3x = (SliderX_Right + Slider_Width) - Thumb_W;
       }
-      sliderLabelHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
+      sliderHandler(SliderY_3, Thumb3_Y, s3x, x3, 3);
       x3 = s3x;
     }
   }
 }
 
-void mainLabelHandler(int pX, int pY) {
+void mainLabelHandler() {
+    setLabelValue(sliderRightOne, 1);
+    setLabelValue(sliderRightTwo, 2);
+    setLabelValue(sliderRightThree, 3);
+    setLabelValue(sliderLeftOne, 4);
+    setLabelValue(sliderLeftTwo, 5);
+    setLabelValue(sliderLeftThree, 6);
 }
 
 
@@ -410,7 +416,7 @@ void updateScreenTask(void* pvParameters) {
       // Slider position parsing and then handling
       if (pageNum == 0) {
         mainSliderHandler(pX, pY);
-        mainLabelHandler(pX, pY);
+        mainLabelHandler();
       }
 
       // button handling
@@ -460,10 +466,7 @@ void setup() {
   ts.begin();
   mpu_setup();
 
-
-  //pageOne();
-  pageThree();
-  pageNum = 2;
+  pageOne();
   pageNumber();
   buttons();
   Serial.println("Touchscreen Started");
