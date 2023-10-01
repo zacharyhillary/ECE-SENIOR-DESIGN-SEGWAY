@@ -18,7 +18,7 @@
 #define KEY_H 40
 
 #define INITKEY_X 85
-#define INITKEY_Y 60
+#define INITKEY_Y 50
 
 void createKeyPad(Adafruit_ILI9341 tft)
 {
@@ -31,6 +31,7 @@ void createKeyPad(Adafruit_ILI9341 tft)
     {
       tft.fillRect(INITKEY_X + j * KEY_W, INITKEY_Y + i * KEY_H, KEY_W, KEY_H, RED);
       tft.drawRect(INITKEY_X + j * KEY_W, INITKEY_Y + i * KEY_H, KEY_W, KEY_H, BLACK);
+      tft.setTextColor(WHITE, RED);
       tft.setCursor(INITKEY_X + j * KEY_W + KEY_W / 2 + 2, INITKEY_Y + i * KEY_H + KEY_H / 2 - 10);
       tft.println(count);
       count++;

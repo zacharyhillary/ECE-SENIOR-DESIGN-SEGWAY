@@ -50,8 +50,8 @@
 
 //Sliders
 #define SliderX_Right 40
-#define SliderX_Left 240
-#define SliderY_1 40
+#define SliderX_Left 240 // Larger x values == more left
+#define SliderY_1 40 // smaller y values == more up + larger y values == more down
 #define SliderY_2 92
 #define SliderY_3 142
 
@@ -65,8 +65,6 @@ int sliderLeftThree = 0;
 int sliderRightOne = 200;
 int sliderRightTwo = 200;
 int sliderRightThree = 200;
-
-
 
 //thumbs
 #define Thumb_H 40
@@ -150,13 +148,13 @@ void pageOne() {
   currColor = ILI9341_BLACK;
 }
 
-void pageTwo() {
+void pageThree() {
   tft.fillScreen(ILI9341_BLUE);
   //Serial.println(pageNum);
   currColor = ILI9341_BLUE;
 }
 
-void pageThree() {
+void pageTwo() {
   tft.fillScreen(ILI9341_MAROON);
   //Serial.println(pageNum);
   currColor = ILI9341_MAROON;
@@ -178,7 +176,7 @@ void pageNumber() {
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
   tft.print(pageNum + 1);
-  tft.println("/3");
+  tft.println("/2");
 }
 
 volatile bool updateTapCounter = false;
@@ -235,7 +233,6 @@ void setLabelValue(int value, int slider) {
   }
   sprintf(sliderValueStr, "%03d", value);
   tft.setCursor(sliderX + Slider_Width + 10, sliderY - 5);
-  tft.setTextColor(WHITE);
   tft.setTextColor(WHITE, BLACK);
   tft.setTextSize(2);
   tft.print(sliderValueStr);
@@ -251,7 +248,6 @@ void sliderHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
   tft.drawRect(x, Thumb_Y, Thumb_W, Thumb_H, WHITE);
   tft.fillRoundRect(SliderX_Right, sliderYPos, Slider_Width, Slider_Height, 2, RED);
 }
-
 
 void dataDisplayTask1(void* pvParameters) {
   while (1) {
@@ -282,19 +278,16 @@ static void Get_Angle_Task(void* pvParameters) {
     currentAngle = Get_Angle();  // set global variable to the current angle of the segway
     xSemaphoreGive(I2CSemaphore);
 
-    Serial.print(currentAngle);
-    Serial.print("\n");
+    // Serial.print(currentAngle);
+    // Serial.print("\n");
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
-
-
-
 volatile int touchCount = 0;
 void dataDisplayTask2(void* pvParameters) {
   while (1) {
-    if (pageNum == 1 && updateTapCounter) {
+    if (pageNum == 2 && updateTapCounter) {
       if ((xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)) {
         tft.fillRect(FRAME_X + 75, FRAME_Y - 100, FRAME_W, FRAME_H, currColor);
         //int randomNumber = random(10);
@@ -316,9 +309,7 @@ void dataDisplayTask2(void* pvParameters) {
 volatile int time = 0;
 void dataDisplayTask3(void* pvParameters) {
   while (1) {
-    if (pageNum == 2) {
-
-
+    if (pageNum == 1) {
 
       tft.fillRect(FRAME_X + 75, FRAME_Y - 100, FRAME_W, FRAME_H, currColor);
 
@@ -384,6 +375,7 @@ void mainSliderHandler(int pX, int pY) {
   }
 }
 
+int selectedLabel;
 void mainLabelHandler() {
     setLabelValue(sliderRightOne, 1);
     setLabelValue(sliderRightTwo, 2);
@@ -393,6 +385,47 @@ void mainLabelHandler() {
     setLabelValue(sliderLeftThree, 6);
 }
 
+void mainLabelHandler(int pX, int pY) {
+    // Serial.print("pX: ");
+    // Serial.println(pX);
+    // Serial.print("pY: ");
+    // Serial.println(pY);
+    selectedLabel = -1;
+    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_1 - Thumb_H && pY < SliderY_1) {
+        selectedLabel = 1;
+        Serial.println("Label 1 Pressed");
+    }
+    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_2 - Thumb_H && pY < SliderY_2) {
+        selectedLabel = 2;
+        Serial.println("Label 2 Pressed");
+    }
+    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_3 - Thumb_H && pY < SliderY_3) {
+        selectedLabel = 3;
+        Serial.println("Label 3 Pressed");
+    }
+    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_1 - Thumb_H && pY < SliderY_1) {
+        selectedLabel = 4;
+        Serial.println("Label 4 Pressed");
+    }
+    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_2 - Thumb_H && pY < SliderY_2) {
+        selectedLabel = 5;
+        Serial.println("Label 5 Pressed");
+    }
+    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_3 - Thumb_H && pY < SliderY_3) {
+        selectedLabel = 6;
+        Serial.println("Label 6 Pressed");
+    }
+    if (selectedLabel != -1) {
+      Serial.println("Display pageThree with keypad");
+      // display pageThree somehow lol
+    }
+    setLabelValue(sliderRightOne, 1);
+    setLabelValue(sliderRightTwo, 2);
+    setLabelValue(sliderRightThree, 3);
+    setLabelValue(sliderLeftOne, 4);
+    setLabelValue(sliderLeftTwo, 5);
+    setLabelValue(sliderLeftThree, 6);
+}
 
 void updateScreenTask(void* pvParameters) {
   bool touchInProgress = false;
@@ -409,26 +442,26 @@ void updateScreenTask(void* pvParameters) {
       xSemaphoreTake(I2CSemaphore, pdMS_TO_TICKS(100));
       p = ts.getPoint();
       xSemaphoreGive(I2CSemaphore);
-      int pY = 240 - p.x;
-      int pX = p.y;
+      int pY = 240 - p.x; // puts x positive towards the right
+      int pX = p.y; // y positive towards the down
       bool pFlag = 0;
 
       // Slider position parsing and then handling
       if (pageNum == 0) {
         mainSliderHandler(pX, pY);
-        mainLabelHandler();
+        mainLabelHandler(pX, pY);
       }
 
       // button handling
       if ((pX > PREVBUTTON_X) && (pX < (PREVBUTTON_X + PREVBUTTON_W))) {
         if ((pY > PREVBUTTON_Y) && (pY <= (PREVBUTTON_Y + PREVBUTTON_H))) {
-          pageNum = (pageNum + 1) % 3;
+          pageNum = (pageNum + 1) % 2;
           pFlag = true;
         }
       }
       if ((pX > NEXTBUTTON_X) && (pX < (NEXTBUTTON_X + NEXTBUTTON_W))) {
         if ((pY > NEXTBUTTON_Y) && (pY <= (NEXTBUTTON_Y + NEXTBUTTON_H))) {
-          pageNum = (pageNum + 2) % 3;
+          pageNum = (pageNum + 1) % 2;
           pFlag = true;
         }
       }
@@ -437,14 +470,14 @@ void updateScreenTask(void* pvParameters) {
         pageOne();
       } else if (pageNum == 1 && pFlag) {
         pageTwo();
-        createKeyPad(tft);
       } else if (pageNum == 2 && pFlag) {
-        pageThree();
+        // pageThree();
+        // createKeyPad(tft);
       }
 
       if (pFlag) {
         buttons();
-        //pageNumber();
+        pageNumber();
         buttonPressed = false;
       }
       pFlag = false;
@@ -452,10 +485,6 @@ void updateScreenTask(void* pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(50));
   }
 }
-
-
-
-
 
 void setup() {
   Serial.begin(115200);
