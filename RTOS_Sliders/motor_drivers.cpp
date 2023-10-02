@@ -2,7 +2,9 @@
 #include <Arduino.h>
 class Motor{
     public:
-        Motor(int pinNumber)pinNum=pinNumber;//overloaded function
+        Motor(int pinNumber){//overloaded constructor
+            pinNum=pinNumber;
+            }
         double speed;
         int pinNum
         void setSpeed(double input){
