@@ -101,6 +101,7 @@ TaskHandle_t ledTaskHandle;
 TaskHandle_t dataDisplayTask1Handle;
 TaskHandle_t dataDisplayTask2Handle;
 TaskHandle_t dataDisplayTask3Handle;
+TaskHandle_t turnSignalTaskHandle;
 TaskHandle_t sliderDisplayTaskHandle;
 TaskHandle_t Handle_Get_Angle_Task;
 SemaphoreHandle_t xSemaphore;
@@ -486,6 +487,36 @@ void updateScreenTask(void* pvParameters) {
   }
 }
 
+#define TURN_SIGNAL_OUTPUT_1 26
+#define TURN_SIGNAL_OUTPUT_2 27
+#define TURN_SIGNAL_INPUT_1 28
+#define TURN_SIGNAL_INPUT_2 29
+bool signalLevelOne = true;
+bool signalLevelTwo = true;
+void turnSignalTask() {
+    while (1) {
+        int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
+        // Serial.print("pin1: ");
+        // Serial.println(pin1);
+        int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
+        // Serial.print("pin2: ");
+        // Serial.println(pin2);
+        if (pin1 == HIGH) {
+          digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
+		  signalLevelOne = !signalLevelOne;
+        } else {
+          digitalWrite(TURN_SIGNAL_OUTPUT_1, LOW);
+        }
+        if (pin2 == HIGH) {
+          digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
+		  signalLevelTwo = !signalLevelTwo;
+        } else {
+          digitalWrite(TURN_SIGNAL_OUTPUT_2, LOW);
+        }
+        vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 1 second
+    }
+}
+
 void setup() {
   Serial.begin(115200);
   tft.begin();
@@ -505,6 +536,10 @@ void setup() {
   pinMode(RED_LED, OUTPUT);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(YELLOW_LED, OUTPUT);
+  pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
+  pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
+  pinMode(TURN_SIGNAL_INPUT_1, INPUT);
+  pinMode(TURN_SIGNAL_INPUT_2, INPUT);
 
   xSemaphore = xSemaphoreCreateBinary();
   I2CSemaphore = xSemaphoreCreateBinary();
@@ -518,6 +553,9 @@ void setup() {
 
   xTaskCreate(ledTask, "LEDTask", configMINIMAL_STACK_SIZE * 4, NULL, 4, &ledTaskHandle);
   Serial.println("LED task created");
+
+  xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &turnSignalTaskHandle);
+  Serial.println("Turn signal task created");
 
   //xTaskCreate(dataDisplayTask1, "dataDisplayTask1", configMINIMAL_STACK_SIZE*4, NULL, 2, &dataDisplayTask1Handle);
   //Serial.println("data display 1 task created");
