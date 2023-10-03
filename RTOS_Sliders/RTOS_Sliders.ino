@@ -491,6 +491,8 @@ void updateScreenTask(void* pvParameters) {
 #define TURN_SIGNAL_OUTPUT_2 27
 #define TURN_SIGNAL_INPUT_1 28
 #define TURN_SIGNAL_INPUT_2 29
+bool signalLevelOne = true;
+bool signalLevelTwo = true;
 void turnSignalTask() {
     while (1) {
         int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
@@ -500,12 +502,14 @@ void turnSignalTask() {
         // Serial.print("pin2: ");
         // Serial.println(pin2);
         if (pin1 == HIGH) {
-          digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
+          digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
+		  signalLevelOne = !signalLevelOne;
         } else {
           digitalWrite(TURN_SIGNAL_OUTPUT_1, LOW);
         }
         if (pin2 == HIGH) {
-          digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
+          digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
+		  signalLevelTwo = !signalLevelTwo;
         } else {
           digitalWrite(TURN_SIGNAL_OUTPUT_2, LOW);
         }
