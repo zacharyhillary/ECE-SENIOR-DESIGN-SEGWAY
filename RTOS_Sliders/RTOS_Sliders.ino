@@ -402,49 +402,44 @@ void mainLabelHandler() {
 
 #define LabelX_Right SliderX_Right + Slider_Width + Thumb_W / 2
 #define LabelX_Left 215 - SliderX_Left + Thumb_W
+#define Label_Width Thumb_W * 1.2
+#define Label_Height Thumb_H / 1.7
+#define LabelY_1 Thumb1_Y + (Thumb_H / 4.0)
+#define LabelY_2 Thumb2_Y + (Thumb_H / 4.0)
+#define LabelY_3 Thumb3_Y + (Thumb_H / 4.0)
 void mainLabelHandler(int pX, int pY) {
-    // Serial.print("pX: ");
-    // Serial.println(pX);
-    // Serial.print("pY: ");
-    // Serial.println(pY);
-    areaDebugger(tft, LabelX_Right, Thumb1_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
-    areaDebugger(tft, LabelX_Right, Thumb2_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
-    areaDebugger(tft, LabelX_Right, Thumb3_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
-    areaDebugger(tft, LabelX_Left, Thumb1_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
-    areaDebugger(tft, LabelX_Left, Thumb2_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
-    areaDebugger(tft, LabelX_Left, Thumb3_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Right, LabelY_1, Label_Width, Label_Height);
+    areaDebugger(tft, LabelX_Right, LabelY_2, Label_Width, Label_Height);
+    areaDebugger(tft, LabelX_Right, LabelY_3, Label_Width, Label_Height);
+    areaDebugger(tft, LabelX_Left, LabelY_1, Label_Width, Label_Height);
+    areaDebugger(tft, LabelX_Left, LabelY_2, Label_Width, Label_Height);
+    areaDebugger(tft, LabelX_Left, LabelY_3, Label_Width, Label_Height);
     selectedLabel = -1;
-    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb1_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb1_Y + Thumb_H / 4)) {
-        selectedLabel = 1;
-        Serial.println("Label 1 Pressed");
-    }
-    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb2_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb2_Y + Thumb_H / 4)) {
-        selectedLabel = 2;
-        Serial.println("Label 2 Pressed");
-    }
-    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb3_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb3_Y + Thumb_H / 4)) {
-        selectedLabel = 3;
-        Serial.println("Label 3 Pressed");
-    }
-    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb1_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb1_Y + Thumb_H / 4)) {
-        selectedLabel = 4;
-        Serial.println("Label 4 Pressed");
-    }
-    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb2_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb2_Y + Thumb_H / 4)) {
-        selectedLabel = 5;
-        Serial.println("Label 5 Pressed");
-    }
-    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb3_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb3_Y + Thumb_H / 4)) {
-        selectedLabel = 6;
-        Serial.println("Label 6 Pressed");
-    }
-    if (selectedLabel != -1 && pageNum != 2) {
-      Serial.println("Display pageThree with keypad");
-      pageNum = 2;
-      keyPadInput = "";
-      pFlag = true;
-      // display pageThree somehow lol
-    }
+    doClickOnArea(pX, pY, LabelX_Right, LabelY_1, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 1 pressed");
+    });
+    doClickOnArea(pX, pY, LabelX_Right, LabelY_2, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 2 pressed");
+    });
+    doClickOnArea(pX, pY, LabelX_Right, LabelY_3, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 3 pressed");
+    });
+    doClickOnArea(pX, pY, LabelX_Left, LabelY_1, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 4 pressed");
+    });
+    doClickOnArea(pX, pY, LabelX_Left, LabelY_2, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 5 pressed");
+    });
+    doClickOnArea(pX, pY, LabelX_Left, LabelY_3, Label_Width, Label_Height, []() -> void {
+        Serial.println("Label 6 pressed");
+    });
+    // if (selectedLabel != -1 && pageNum != 2) {
+    //   Serial.println("Display pageThree with keypad");
+    //   pageNum = 2;
+    //   keyPadInput = "";
+    //   pFlag = true;
+    //   // display pageThree somehow lol
+    // }
     setLabelValue(sliderRightOne, 1);
     setLabelValue(sliderRightTwo, 2);
     setLabelValue(sliderRightThree, 3);
