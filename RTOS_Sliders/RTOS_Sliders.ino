@@ -7,6 +7,7 @@
 #include "semphr.h"
 #include "keypad.h"
 #include "mpu_6050_drivers.h"
+#include "utility_drivers.h"
 
 #define TFT_CLK 52
 #define TFT_MISO 50
@@ -84,7 +85,9 @@ const int ledPins[numLEDs] = { RED_LED, BLUE_LED, YELLOW_LED };
 
 boolean RecordOn = false;
 volatile int pageNum = 0;
+volatile int keyPadInput = "";
 volatile int currColor;
+volatile bool pFlag = 0;
 int randomNum = 0;
 
 volatile bool buttonPressed = false;
@@ -150,9 +153,9 @@ void pageOne() {
 }
 
 void pageThree() {
-  tft.fillScreen(ILI9341_BLUE);
+  tft.fillScreen(WHITE);
   //Serial.println(pageNum);
-  currColor = ILI9341_BLUE;
+  currColor = WHITE;
 }
 
 void pageTwo() {
@@ -240,14 +243,25 @@ void setLabelValue(int value, int slider) {
 }
 
 void sliderHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
+  char sliderLabel;
+  switch(slider) {
+    case 1: sliderLabel = 'P'; break;
+    case 2: sliderLabel = 'I'; break;
+    case 3: sliderLabel = 'D'; break;
+  }
   sliderValue = x - SliderX_Right;  //(x-tft.width()) + (SliderX_Right+Slider_Width-Thumb_W);
   if (sliderValue < 0) sliderValue = 0;
   // setLabelValue(sliderValue, slider);
   // erase previous thumb by redrawing with background color
-  tft.drawRect(x1, Thumb_Y, Thumb_W, Thumb_H, BLACK);
+  tft.fillRect(x1, Thumb_Y, Thumb_W, Thumb_H, BLACK);
   // then draw new thumb
-  tft.drawRect(x, Thumb_Y, Thumb_W, Thumb_H, WHITE);
   tft.fillRoundRect(SliderX_Right, sliderYPos, Slider_Width, Slider_Height, 2, RED);
+  tft.fillRect(x, Thumb_Y, Thumb_W, Thumb_H, BLACK);
+  tft.drawRect(x, Thumb_Y, Thumb_W, Thumb_H, WHITE);
+  tft.setTextSize(3);
+  tft.setTextColor(WHITE);
+  tft.setCursor(x+5, Thumb_Y+10);
+  tft.print(sliderLabel);
 }
 
 void dataDisplayTask1(void* pvParameters) {
@@ -330,7 +344,7 @@ void dataDisplayTask3(void* pvParameters) {
 
 void mainSliderHandler(int pX, int pY) {
   // slider1 handling
-  if (pX > SliderX_Right && pX < (SliderX_Right + Slider_Width + Thumb_W)) {
+  if (pX > SliderX_Right && pX < (SliderX_Right + Slider_Width + Thumb_W)) { 
     if (pY > Thumb1_Y && pY < (Thumb1_Y + Thumb_H)) {
       s1x = pX;
       s1y = pY;
@@ -386,38 +400,49 @@ void mainLabelHandler() {
     setLabelValue(sliderLeftThree, 6);
 }
 
+#define LabelX_Right SliderX_Right + Slider_Width + Thumb_W / 2
+#define LabelX_Left 215 - SliderX_Left + Thumb_W
 void mainLabelHandler(int pX, int pY) {
     // Serial.print("pX: ");
     // Serial.println(pX);
     // Serial.print("pY: ");
     // Serial.println(pY);
+    areaDebugger(tft, LabelX_Right, Thumb1_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Right, Thumb2_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Right, Thumb3_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Left, Thumb1_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Left, Thumb2_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
+    areaDebugger(tft, LabelX_Left, Thumb3_Y + Thumb_H / 4, Thumb_W * 1.2, Thumb_H / 1.7);
     selectedLabel = -1;
-    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_1 - Thumb_H && pY < SliderY_1) {
+    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb1_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb1_Y + Thumb_H / 4)) {
         selectedLabel = 1;
         Serial.println("Label 1 Pressed");
     }
-    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_2 - Thumb_H && pY < SliderY_2) {
+    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb2_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb2_Y + Thumb_H / 4)) {
         selectedLabel = 2;
         Serial.println("Label 2 Pressed");
     }
-    if(pX > 240 - SliderX_Right + 60 && pX < (240 - SliderX_Right + 60 + Thumb_W) && pY > SliderY_3 - Thumb_H && pY < SliderY_3) {
+    if(pX > LabelX_Right && pX < LabelX_Right + Thumb_W * 1.2 && pY > (Thumb3_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb3_Y + Thumb_H / 4)) {
         selectedLabel = 3;
         Serial.println("Label 3 Pressed");
     }
-    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_1 - Thumb_H && pY < SliderY_1) {
+    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb1_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb1_Y + Thumb_H / 4)) {
         selectedLabel = 4;
         Serial.println("Label 4 Pressed");
     }
-    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_2 - Thumb_H && pY < SliderY_2) {
+    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb2_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb2_Y + Thumb_H / 4)) {
         selectedLabel = 5;
         Serial.println("Label 5 Pressed");
     }
-    if(pX > 240 - SliderX_Left && pX < (240 - SliderX_Left + Thumb_W) && pY > SliderY_3 - Thumb_H && pY < SliderY_3) {
+    if(pX > LabelX_Left && pX < LabelX_Left + Thumb_W * 1.2 && pY > (Thumb3_Y + Thumb_H / 4 - Thumb_H / 1.7) && pY < (Thumb3_Y + Thumb_H / 4)) {
         selectedLabel = 6;
         Serial.println("Label 6 Pressed");
     }
-    if (selectedLabel != -1) {
+    if (selectedLabel != -1 && pageNum != 2) {
       Serial.println("Display pageThree with keypad");
+      pageNum = 2;
+      keyPadInput = "";
+      pFlag = true;
       // display pageThree somehow lol
     }
     setLabelValue(sliderRightOne, 1);
@@ -445,24 +470,26 @@ void updateScreenTask(void* pvParameters) {
       xSemaphoreGive(I2CSemaphore);
       int pY = 240 - p.x; // puts x positive towards the right
       int pX = p.y; // y positive towards the down
-      bool pFlag = 0;
 
       // Slider position parsing and then handling
       if (pageNum == 0) {
         mainSliderHandler(pX, pY);
         mainLabelHandler(pX, pY);
       }
+      if(pageNum == 2) {
+        keypadHandler(tft, pX, pY);
+      }
 
       // button handling
       if ((pX > PREVBUTTON_X) && (pX < (PREVBUTTON_X + PREVBUTTON_W))) {
-        if ((pY > PREVBUTTON_Y) && (pY <= (PREVBUTTON_Y + PREVBUTTON_H))) {
-          pageNum = (pageNum + 1) % 2;
+        if ((pY > PREVBUTTON_Y) && (pY <= (PREVBUTTON_Y + PREVBUTTON_H)) && pageNum != 2) {
+          pageNum = pageNum == 0 ? 1 : 0;
           pFlag = true;
         }
       }
       if ((pX > NEXTBUTTON_X) && (pX < (NEXTBUTTON_X + NEXTBUTTON_W))) {
-        if ((pY > NEXTBUTTON_Y) && (pY <= (NEXTBUTTON_Y + NEXTBUTTON_H))) {
-          pageNum = (pageNum + 1) % 2;
+        if ((pY > NEXTBUTTON_Y) && (pY <= (NEXTBUTTON_Y + NEXTBUTTON_H)) && pageNum != 2) {
+          pageNum = pageNum == 0 ? 1 : 0;
           pFlag = true;
         }
       }
@@ -472,13 +499,15 @@ void updateScreenTask(void* pvParameters) {
       } else if (pageNum == 1 && pFlag) {
         pageTwo();
       } else if (pageNum == 2 && pFlag) {
-        // pageThree();
-        // createKeyPad(tft);
+        pageThree();
+        createKeyPad(tft);
       }
 
       if (pFlag) {
-        buttons();
-        pageNumber();
+        if (pageNum != 2) {
+          buttons();
+          pageNumber();
+        }
         buttonPressed = false;
       }
       pFlag = false;
