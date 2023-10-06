@@ -60,12 +60,12 @@
 #define Slider_Height 5
 
 // Labels
-int sliderLeftOne = 0;
-int sliderLeftTwo = 0;
-int sliderLeftThree = 0;
-int sliderRightOne = 200;
-int sliderRightTwo = 200;
-int sliderRightThree = 200;
+int sliderFour = 0;
+int sliderFive = 0;
+int sliderSix = 0;
+int sliderOne = 200;
+int sliderTwo = 200;
+int sliderThree = 200;
 
 //thumbs
 #define Thumb_H 40
@@ -85,7 +85,7 @@ const int ledPins[numLEDs] = { RED_LED, BLUE_LED, YELLOW_LED };
 
 boolean RecordOn = false;
 volatile int pageNum = 0;
-volatile int keyPadInput = "";
+int keyPadInput[3] = {-1, -1, -1};
 volatile int currColor;
 volatile bool pFlag = 0;
 int randomNum = 0;
@@ -392,12 +392,12 @@ void mainSliderHandler(int pX, int pY) {
 
 int selectedLabel;
 void mainLabelHandler() {
-    setLabelValue(sliderRightOne, 1);
-    setLabelValue(sliderRightTwo, 2);
-    setLabelValue(sliderRightThree, 3);
-    setLabelValue(sliderLeftOne, 4);
-    setLabelValue(sliderLeftTwo, 5);
-    setLabelValue(sliderLeftThree, 6);
+    setLabelValue(sliderOne, 1);
+    setLabelValue(sliderTwo, 2);
+    setLabelValue(sliderThree, 3);
+    setLabelValue(sliderFour, 4);
+    setLabelValue(sliderFive, 5);
+    setLabelValue(sliderSix, 6);
 }
 
 #define LabelX_Right SliderX_Right + Slider_Width + Thumb_W / 2
@@ -416,65 +416,49 @@ void mainLabelHandler(int pX, int pY) {
     areaDebugger(tft, LabelX_Left, LabelY_3, Label_Width, Label_Height);
     selectedLabel = -1;
     doClickOnArea(pX, pY, LabelX_Right, LabelY_1, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 1;
         Serial.println("Label 1 pressed");
     });
     doClickOnArea(pX, pY, LabelX_Right, LabelY_2, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 2;
         Serial.println("Label 2 pressed");
     });
     doClickOnArea(pX, pY, LabelX_Right, LabelY_3, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 3;
         Serial.println("Label 3 pressed");
     });
     doClickOnArea(pX, pY, LabelX_Left, LabelY_1, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 4;
         Serial.println("Label 4 pressed");
     });
     doClickOnArea(pX, pY, LabelX_Left, LabelY_2, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 5;
         Serial.println("Label 5 pressed");
     });
     doClickOnArea(pX, pY, LabelX_Left, LabelY_3, Label_Width, Label_Height, []() -> void {
+        selectedLabel = 6;
         Serial.println("Label 6 pressed");
     });
-    // if (selectedLabel != -1 && pageNum != 2) {
-    //   Serial.println("Display pageThree with keypad");
-    //   pageNum = 2;
-    //   keyPadInput = "";
-    //   pFlag = true;
-    //   // display pageThree somehow lol
-    // }
-    setLabelValue(sliderRightOne, 1);
-    setLabelValue(sliderRightTwo, 2);
-    setLabelValue(sliderRightThree, 3);
-    setLabelValue(sliderLeftOne, 4);
-    setLabelValue(sliderLeftTwo, 5);
-    setLabelValue(sliderLeftThree, 6);
+    if (selectedLabel != -1 && pageNum != 2) {
+      Serial.print("Display pageThree with selected label: ");
+      Serial.println(selectedLabel);
+      pageNum = 2;
+      keyPadInput[0] = -1;
+      keyPadInput[1] = -1;
+      keyPadInput[2] = -1;
+      pFlag = true;
+      // display pageThree somehow lol
+    }
+    setLabelValue(sliderOne, 1);
+    setLabelValue(sliderTwo, 2);
+    setLabelValue(sliderThree, 3);
+    setLabelValue(sliderFour, 4);
+    setLabelValue(sliderFive, 5);
+    setLabelValue(sliderSix, 6);
 }
 
-void updateScreenTask(void* pvParameters) {
-  bool touchInProgress = false;
-  while (1) {
-    if (buttonPressed) {
-      // Serial.println(millis() - lastDebounceTime);
-      // Serial.println(buttonPressed);
-      // Serial.println("Touched");
-      touchCount++;
-
-
-      // if((xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE)){
-      // Serial.println("update");
-      xSemaphoreTake(I2CSemaphore, pdMS_TO_TICKS(100));
-      p = ts.getPoint();
-      xSemaphoreGive(I2CSemaphore);
-      int pY = 240 - p.x; // puts x positive towards the right
-      int pX = p.y; // y positive towards the down
-
-      // Slider position parsing and then handling
-      if (pageNum == 0) {
-        mainSliderHandler(pX, pY);
-        mainLabelHandler(pX, pY);
-      }
-      if(pageNum == 2) {
-        keypadHandler(tft, pX, pY);
-      }
-
+void buttonHandler(int pX, int pY) {
+      if(pageNum == 2) return;
       // button handling
       if ((pX > PREVBUTTON_X) && (pX < (PREVBUTTON_X + PREVBUTTON_W))) {
         if ((pY > PREVBUTTON_Y) && (pY <= (PREVBUTTON_Y + PREVBUTTON_H)) && pageNum != 2) {
@@ -488,6 +472,50 @@ void updateScreenTask(void* pvParameters) {
           pFlag = true;
         }
       }
+}
+
+void updateScreenTask(void* pvParameters) {
+  bool touchInProgress = false;
+  while (1) {
+    if (buttonPressed) {
+      // Serial.println(millis() - lastDebounceTime);
+      // Serial.println(buttonPressed);
+      // Serial.println("Touched");
+      touchCount++;
+
+      // if((xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE)){
+      // Serial.println("update");
+      xSemaphoreTake(I2CSemaphore, pdMS_TO_TICKS(100));
+      p = ts.getPoint();
+      xSemaphoreGive(I2CSemaphore);
+      
+      int pY = 240 - p.x; // puts x positive towards the right
+      int pX = p.y; // y positive towards the down
+
+      // Slider position parsing and then handling
+      if (pageNum == 0) {
+        mainSliderHandler(pX, pY);
+        mainLabelHandler(pX, pY);
+      } else if(pageNum == 2) {
+        int result = keypadHandler(tft, pX, pY, keyPadInput);
+        if(result != -1) {
+          pageNum = result;
+          Serial.print("New page: ");
+          Serial.println(pageNum);
+          int newSliderValue = (keyPadInput[0] == -1 ? 0 : keyPadInput[0]) * 100 + (keyPadInput[1] == -1 ? 0 : keyPadInput[1]) * 10 + (keyPadInput[2] == -1 ? 0 : keyPadInput[2]);
+          switch(selectedLabel) {
+            case 1: sliderOne = newSliderValue; break;
+            case 2: sliderTwo = newSliderValue; break;
+            case 3: sliderThree = newSliderValue; break;
+            case 4: sliderFour = newSliderValue; break;
+            case 5: sliderFive = newSliderValue; break;
+            case 6: sliderSix = newSliderValue; break;
+          }
+          pFlag = true;
+        }
+      }
+
+      buttonHandler(pX, pY);
 
       if (pageNum == 0 && pFlag) {
         pageOne();
@@ -564,6 +592,14 @@ void setup() {
   pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
   pinMode(TURN_SIGNAL_INPUT_1, INPUT);
   pinMode(TURN_SIGNAL_INPUT_2, INPUT);
+    for(int i=0; i<10; i++) {
+        int row = i / 3;
+        int column = i % 3;
+        Serial.print("row: ");
+        Serial.print(row);
+        Serial.print("   |   column: ");
+        Serial.println(column);
+    }
 
   xSemaphore = xSemaphoreCreateBinary();
   I2CSemaphore = xSemaphoreCreateBinary();

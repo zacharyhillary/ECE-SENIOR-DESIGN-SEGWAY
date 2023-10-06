@@ -29,3 +29,7 @@ void doClickOnArea(int pX, int pY, int x, int y, int width, int height, void *fu
         func();
     }
 }
+
+bool checkAreaClicked(int pX, int pY, int x, int y, int width, int height) {
+    return x < pX && pX < x + width && y - height < pY && pY < y;
+}

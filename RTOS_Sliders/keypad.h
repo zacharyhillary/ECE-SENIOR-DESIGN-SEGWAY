@@ -3,7 +3,8 @@
 #include <Adafruit_ILI9341.h>
 
 void createKeyPad(Adafruit_ILI9341 tft);
-void keypadHandler(Adafruit_ILI9341 tft, int x, int y);
+void appendInt(int input, int array[]);
+int keypadHandler(Adafruit_ILI9341 tft, int x, int y, int keyInput[]);
 int setValue(int value);
 
 #endif
