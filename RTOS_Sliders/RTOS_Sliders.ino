@@ -79,6 +79,9 @@ int Thumb1_X = SliderX_Right - Thumb_W;
 int Thumb2_X = SliderX_Right - Thumb_W;
 int Thumb3_X = SliderX_Right - Thumb_W;
 double currentAngle;
+double kp=0;
+double ki=0;
+double kd=0;
 int currentLED = 0;
 const int numLEDs = 3;
 const int ledPins[numLEDs] = { RED_LED, BLUE_LED, YELLOW_LED };
@@ -99,6 +102,8 @@ const unsigned long debounceDelay = 100;
 Adafruit_FT6206 ts = Adafruit_FT6206();
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
+TaskHandle_t mainControlTaskHandle;
+
 TaskHandle_t updateTaskHandle;
 TaskHandle_t ledTaskHandle;
 TaskHandle_t dataDisplayTask1Handle;
@@ -112,11 +117,32 @@ SemaphoreHandle_t I2CSemaphore;
 
 const int buttonPin = 2;
 
+
 int sliderValue = 0;
 int s1x = SliderX_Right, s1y, s2x = SliderX_Right, s2y, s3x = SliderX_Right, s3y;
 int x1 = SliderX_Right, x2 = SliderX_Right, x3 = SliderX_Right;
 
 char sliderValueStr[5];
+
+void mainControlTask(void* pvParameters){
+  double previousError=0;
+  double integral=0;
+while(1){
+  double setpoint=0;//we want segway to balance at 0deg -> may need to tweak this value.
+  double processVariable = currentAngle;
+
+  double error = setpoint - processVariable;  
+  integral += ki * error;  
+  double derivative = error - previousError;  
+  double output = kp * error +  integral + kd * derivative;  
+  previousError = error;  
+
+  //LeftMotor.setSpeed(output);
+  //RightMotor.setSpeed(output):
+  vTaskDelay(pdMS_TO_TICKS(10));//100 hz
+}
+  
+}
 
 void ledTask(void* pvParameters) {
   while (1) {
@@ -625,7 +651,8 @@ void setup() {
 
   xTaskCreate(dataDisplayTask3, "dataDisplayTask3", configMINIMAL_STACK_SIZE * 4, NULL, 3, &dataDisplayTask3Handle);
   Serial.println("data display 3 task created");
-
+xTaskCreate(mainControlTask, "mainControlTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &mainControlTaskHandle);
+Serial.println("Main Control Task Created!!!");
   //xTaskCreate(sliderDisplayTask, "sliderDisplayTask", configMINIMAL_STACK_SIZE*4, NULL, 4, &sliderDisplayTaskHandle);
   //Serial.println("slider display task created");
 
