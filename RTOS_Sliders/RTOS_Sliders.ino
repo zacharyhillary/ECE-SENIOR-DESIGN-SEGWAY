@@ -9,6 +9,8 @@
 #include "mpu_6050_drivers.h"
 #include "utility_drivers.h"
 
+#include "sliders.h"
+
 #define TFT_CLK 52
 #define TFT_MISO 50
 #define TFT_MOSI 51
