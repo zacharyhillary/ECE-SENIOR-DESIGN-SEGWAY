@@ -141,7 +141,7 @@ void mainControlTask(void* pvParameters) {
 
     // LeftMotor.setSpeed(output);
     // RightMotor.setSpeed(output):
-    vTaskDelay(pdMS_TO_TICKS(10));  //100 hz
+    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want more precise timing
   }
 }
 
@@ -507,7 +507,6 @@ void updateScreenTask(void* pvParameters) {
     if (buttonPressed) {
       // Serial.println(millis() - lastDebounceTime);
       // Serial.println(buttonPressed);
-      // Serial.println("Touched");
       touchCount++;
 
       // if((xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE)){
@@ -655,6 +654,7 @@ void setup() {
   
   xTaskCreate(mainControlTask, "mainControlTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &mainControlTaskHandle);
   Serial.println("Main Control Task Created!!!");
+
   //xTaskCreate(sliderDisplayTask, "sliderDisplayTask", configMINIMAL_STACK_SIZE*4, NULL, 4, &sliderDisplayTaskHandle);
   //Serial.println("slider display task created");
 
