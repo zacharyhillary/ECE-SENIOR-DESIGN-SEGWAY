@@ -9,8 +9,6 @@
 #include "mpu_6050_drivers.h"
 #include "utility_drivers.h"
 
-#include "sliders.h"
-
 #define TFT_CLK 52
 #define TFT_MISO 50
 #define TFT_MOSI 51
@@ -58,16 +56,20 @@
 #define SliderY_2 92
 #define SliderY_3 142
 
+//Labels
+#define LabelX_Right SliderX_Right + Slider_Width + Thumb_W / 2
+#define LabelX_Left 215 - SliderX_Left + Thumb_W
+
 #define Slider_Width 220
 #define Slider_Height 5
 
 // Labels
-int sliderFour = 0;
-int sliderFive = 0;
-int sliderSix = 0;
-int sliderOne = 200;
-int sliderTwo = 200;
-int sliderThree = 200;
+double sliderOne = 15.0;
+double sliderTwo = 15.0;
+double sliderThree = 15.0;
+double sliderFour = 0.0;
+double sliderFive = 0.0;
+double sliderSix = 0.0;
 
 //thumbs
 #define Thumb_H 40
@@ -90,7 +92,7 @@ const int ledPins[numLEDs] = { RED_LED, BLUE_LED, YELLOW_LED };
 
 boolean RecordOn = false;
 volatile int pageNum = 0;
-int keyPadInput[3] = { -1, -1, -1 };
+char keyPadInput[4] = { '\0', '\0', '\0', '\0' };
 volatile int currColor;
 volatile bool pFlag = 0;
 int randomNum = 0;
@@ -226,48 +228,48 @@ void buttonInterrupt() {
 
 // This sets the right number value depending on the
 // x position of the slider
-void setLabelValue(int value, int slider) {
-  //Serial.println("Show Slider Value");
-  int sliderX;
-  int sliderY;
-  switch (slider) {
-    case 1: {
-        sliderX = SliderX_Right;
-        sliderY = SliderY_1;
-        break;
-      }
-    case 2: {
-        sliderX = SliderX_Right;
-        sliderY = SliderY_2;
-        break;
-      }
-    case 3: {
-        sliderX = SliderX_Right;
-        sliderY = SliderY_3;
-        break;
-      }
-    case 4: {
-        sliderX = SliderX_Left;
-        sliderY = SliderY_1 - 15;
-        break;
-      }
-    case 5: {
-        sliderX = SliderX_Left;
-        sliderY = SliderY_2 - 15;
-        break;
-      }
-    case 6: {
-        sliderX = SliderX_Left;
-        sliderY = SliderY_3 - 15;
-        break;
-      }
-  }
-  sprintf(sliderValueStr, "%03d", value);
-  tft.setCursor(sliderX + Slider_Width + 10, sliderY - 5);
-  tft.setTextColor(WHITE, BLACK);
-  tft.setTextSize(2);
-  tft.print(sliderValueStr);
-}
+void setLabelValue(double value, int slider) { 
+  //Serial.println("Show Slider Value"); 
+  int sliderX; 
+  int sliderY; 
+  switch (slider) { 
+    case 1: { 
+        sliderX = LabelX_Right; 
+        sliderY = SliderY_1; 
+        break; 
+      } 
+    case 2: { 
+        sliderX = LabelX_Right; 
+        sliderY = SliderY_2; 
+        break; 
+      } 
+    case 3: { 
+        sliderX = LabelX_Right; 
+        sliderY = SliderY_3; 
+        break; 
+      } 
+    case 4: { 
+        sliderX = LabelX_Left; 
+        sliderY = SliderY_1; 
+        break; 
+      } 
+    case 5: { 
+        sliderX = LabelX_Left; 
+        sliderY = SliderY_2; 
+        break; 
+      } 
+    case 6: { 
+        sliderX = LabelX_Left; 
+        sliderY = SliderY_3; 
+        break; 
+      } 
+  } 
+  dtostrf(value, 3, 2, sliderValueStr); 
+  tft.setCursor(sliderX, sliderY - 5); 
+  tft.setTextColor(WHITE, BLACK); 
+  tft.setTextSize(1); 
+  tft.print(sliderValueStr); 
+} 
 
 void sliderHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
   char sliderLabel;
@@ -427,8 +429,6 @@ void mainLabelHandler() {
   setLabelValue(sliderSix, 6);
 }
 
-#define LabelX_Right SliderX_Right + Slider_Width + Thumb_W / 2
-#define LabelX_Left 215 - SliderX_Left + Thumb_W
 #define Label_Width Thumb_W * 1.2
 #define Label_Height Thumb_H / 1.7
 #define LabelY_1 Thumb1_Y + (Thumb_H / 4.0)
@@ -462,19 +462,20 @@ void mainLabelHandler(int pX, int pY) {
     selectedLabel = 5;
     Serial.println("Label 5 pressed");
   });
-  doClickOnArea(pX, pY, LabelX_Left, LabelY_3, Label_Width, Label_Height, []() -> void {
+  if(checkAreaClicked(pX, pY, LabelX_Left, LabelY_3, Label_Width, Label_Height)) {
     selectedLabel = 6;
     Serial.println("Label 6 pressed");
-  });
+  }
   if (selectedLabel != -1 && pageNum != 2) {
     Serial.print("Display pageThree with selected label: ");
     Serial.println(selectedLabel);
     pageNum = 2;
-    keyPadInput[0] = -1;
-    keyPadInput[1] = -1;
-    keyPadInput[2] = -1;
+    keyPadInput[0] = '\0';
+    keyPadInput[1] = '\0';
+    keyPadInput[2] = '\0';
+    keyPadInput[3] = '\0';
+    keyPadInput[4] = '\0';
     pFlag = true;
-    // display pageThree somehow lol
   }
   setLabelValue(sliderOne, 1);
   setLabelValue(sliderTwo, 2);
@@ -528,14 +529,27 @@ void updateScreenTask(void* pvParameters) {
           pageNum = result;
           Serial.print("New page: ");
           Serial.println(pageNum);
-          int newSliderValue = (keyPadInput[0] == -1 ? 0 : keyPadInput[0]) * 100 + (keyPadInput[1] == -1 ? 0 : keyPadInput[1]) * 10 + (keyPadInput[2] == -1 ? 0 : keyPadInput[2]);
+          double newSliderValue = inputArrayToDecimal(keyPadInput);
+        
           switch (selectedLabel) {
-            case 1: sliderOne = newSliderValue; break;
-            case 2: sliderTwo = newSliderValue; break;
-            case 3: sliderThree = newSliderValue; break;
-            case 4: sliderFour = newSliderValue; break;
-            case 5: sliderFive = newSliderValue; break;
-            case 6: sliderSix = newSliderValue; break;
+            case 1: 
+                sliderOne = newSliderValue; 
+                break;
+            case 2: 
+                sliderTwo = newSliderValue; 
+                break;
+            case 3: 
+                sliderThree = newSliderValue; 
+                break;
+            case 4: 
+                sliderFour = newSliderValue; 
+                break;
+            case 5: 
+                sliderFive = newSliderValue; 
+                break;
+            case 6: 
+                sliderSix = newSliderValue; 
+                break;
           }
           pFlag = true;
         }
