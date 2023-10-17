@@ -8,6 +8,7 @@
 #include "keypad.h"
 #include "mpu_6050_drivers.h"
 #include "utility_drivers.h"
+#include "motor_drivers.h"
 
 #define TFT_CLK 52
 #define TFT_MISO 50
@@ -121,10 +122,16 @@ SemaphoreHandle_t I2CSemaphore;
 
 const int buttonPin = 2;
 
+Motor LeftMotor(4);
+Motor RightMotor(5);
 
 int sliderValue = 0;
 int s1x = SliderX_Right, s1y, s2x = SliderX_Right, s2y, s3x = SliderX_Right, s3y;
 int x1 = SliderX_Right, x2 = SliderX_Right, x3 = SliderX_Right;
+
+double dt = 0;
+double timer = 0;
+const double MICRO_SECOND = 1000000.00;
 
 char sliderValueStr[5];
 
@@ -132,18 +139,21 @@ void mainControlTask(void* pvParameters) {
   double previousError = 0;
   double integral = 0;
   while (1) {
-    double setpoint = 0;  //we want segway to balance at 0deg -> may need to tweak this value.
+    dt = (micros() - timer) / MICRO_SECOND;
+    timer = micros();
+    double setpoint = 0.1;  //we want segway to balance at 0deg -> may need to tweak this value.
     double processVariable = currentAngle;
 
     double error = setpoint - processVariable;
-    integral += ki * error;
-    double derivative = error - previousError;
-    double output = kp * error + integral + kd * derivative;
+    integral += error * dt;
+    double derivative = (error - previousError)/dt;
+    double output = kp * error + ki * integral + kd * derivative;
     previousError = error;
 
-    // LeftMotor.setSpeed(output);
-    // RightMotor.setSpeed(output):
-    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want more precise timing
+    LeftMotor.setSpeed(output);
+    RightMotor.setSpeed(output);
+
+    vTaskDelay(pdMS_TO_TICKS(17));  // ~60 Hz need to implement with different timing source if we want more precise timing
   }
 }
 

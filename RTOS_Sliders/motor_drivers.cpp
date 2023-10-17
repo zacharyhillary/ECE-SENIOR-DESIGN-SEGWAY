@@ -1,4 +1,5 @@
 #include "motor_drivers.h"
+#include "mpu_6050_drivers.h"
 #include <Arduino.h>
 
 Motor::Motor(int pinNumber) {  //overloaded constructor

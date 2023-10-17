@@ -11,4 +11,6 @@ private:
     double speed;
 };
 
+
+
 #endif // MOTOR_H

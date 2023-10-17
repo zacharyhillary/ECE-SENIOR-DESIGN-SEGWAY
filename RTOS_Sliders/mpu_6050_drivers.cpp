@@ -14,14 +14,27 @@
 Simple_MPU6050 mpu;
 
 double current_angle;
+// double lastError, integral, kp = 15, ki = 15, kd = .15;
+// double dt = 0;
+
+int throttle = 0;
 
 void mpu_setup()
 {
   current_angle = 0;
   mpu.begin();
+  mpu.SetAddress(MPU6050_DEFAULT_ADDRESS);
+
+  //calibration
+  mpu.CalibrateMPU();
+  delay(1000);
+  for(int i = 5; i <= 30; i+=5){
+    delay(100);
+    mpu.CalibrateAccel();
+    mpu.CalibrateGyro();
+  }
+  
   mpu.Set_DMP_Output_Rate_Hz(200); // Set the DMP output rate from 200Hz to 5 Minutes.
-  // mpu.CalibrateAccel();
-  // mpu.CalibrateGyro();
   mpu.setOffset(-2348, -1058, 826, 7, -33, 1);
   mpu.load_DMP_Image(); // Loads the DMP image into the MPU and finish configuration.
   mpu.DMP_InterruptEnable(1);
@@ -49,3 +62,53 @@ double Get_Angle()
   mpu.dmp_read_fifo(0);
   return current_angle;
 }
+
+// bool computePID(){
+//   double error;
+//   double derivative;
+
+//   if(current_angle > 0){
+//     error = (0.1 - current_angle);
+//   }
+//   else{
+//     error = (0.1 - current_angle);
+//   }
+
+//   integral += error * dt;
+//   derivative = (error - lastError)/dt;
+//   lastError = error;
+
+
+//   throttle = -1*((kp*error) + (ki* integral) + (kd*derivative));
+
+//   if (throttle > 100){
+//     throttle = 100;
+//   }
+//   if( throttle < -100){
+//     throttle = -100;
+//   }
+
+// }
+
+// void set_dt(double new_dt){
+//   dt = new_dt;
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
