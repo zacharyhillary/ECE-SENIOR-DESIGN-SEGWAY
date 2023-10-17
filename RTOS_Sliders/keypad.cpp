@@ -4,6 +4,7 @@
 #include <Adafruit_ILI9341.h>
 #include <SPI.h>
 #include "utility_drivers.h"
+#include "sliders.h"
 
 // Common 16-bit color values:
 #define BLACK 0x0000
@@ -158,5 +159,6 @@ int keypadHandler(Adafruit_ILI9341 tft, int pX, int pY, char keyInput[])
             } 
         } 
     } 
+    setKeyPadInput(keyInput);
     return -1; 
 } 
