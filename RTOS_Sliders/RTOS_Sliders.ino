@@ -587,75 +587,69 @@ bool signalLevelOne = true;
 bool signalLevelTwo = true;
 void turnSignalTask() {
   while (1) {
+    Serial1.println("Turn signal task hit");
     int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
-    // Serial.print("pin1: ");
-    // Serial.println(pin1);
+    Serial1.print("pin1: ");
+    Serial1.println(pin1);
     int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
-    // Serial.print("pin2: ");
-    // Serial.println(pin2);
-    if (pin1 == HIGH) {
+    Serial1.print("pin2: ");
+    Serial1.println(pin2);
+    if (pin1 == LOW) {
       digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
       signalLevelOne = !signalLevelOne;
     } else {
-      digitalWrite(TURN_SIGNAL_OUTPUT_1, LOW);
+      digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
     }
-    if (pin2 == HIGH) {
+    if (pin2 == LOW) {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
       signalLevelTwo = !signalLevelTwo;
     } else {
-      digitalWrite(TURN_SIGNAL_OUTPUT_2, LOW);
+      digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 1 second
   }
 }
 
 void setup() {
-  Serial.begin(115200);
-  tft.begin();
-  tft.setRotation(3);
-  tft.fillScreen(ILI9341_BLACK);
+  Serial1.begin(9600);
+  // tft.begin();
+  // tft.setRotation(3);
+  // tft.fillScreen(ILI9341_BLACK);
 
-  ts.begin();
-  mpu_setup();
+  // ts.begin();
+  // mpu_setup();
 
-  pageOne();
-  pageNumber();
-  buttons();
-  Serial.println("Touchscreen Started");
+  // pageOne();
+  // pageNumber();
+  // buttons();
+  // Serial.println("Touchscreen Started");
 
-  attachInterrupt(digitalPinToInterrupt(2), buttonInterrupt, FALLING);
+  // attachInterrupt(digitalPinToInterrupt(2), buttonInterrupt, FALLING);
 
-  pinMode(RED_LED, OUTPUT);
-  pinMode(BLUE_LED, OUTPUT);
-  pinMode(YELLOW_LED, OUTPUT);
+  // pinMode(RED_LED, OUTPUT);
+  // pinMode(BLUE_LED, OUTPUT);
+  // pinMode(YELLOW_LED, OUTPUT);
   pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
   pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
-  pinMode(TURN_SIGNAL_INPUT_1, INPUT);
-  pinMode(TURN_SIGNAL_INPUT_2, INPUT);
-  for (int i = 0; i < 10; i++) {
-    int row = i / 3;
-    int column = i % 3;
-    Serial.print("row: ");
-    Serial.print(row);
-    Serial.print("   |   column: ");
-    Serial.println(column);
-  }
+  pinMode(TURN_SIGNAL_INPUT_1, INPUT_PULLUP);
+  pinMode(TURN_SIGNAL_INPUT_2, INPUT_PULLUP);
 
-  xSemaphore = xSemaphoreCreateBinary();
-  I2CSemaphore = xSemaphoreCreateBinary();
-  xSemaphoreGive(xSemaphore);
-  Serial.println("Semaphore created");
+  // xSemaphore = xSemaphoreCreateBinary();
+  // I2CSemaphore = xSemaphoreCreateBinary();
+  // xSemaphoreGive(xSemaphore);
+  // Serial.println("Semaphore created");
 
-  xTaskCreate(Get_Angle_Task, "Get_Angle_Task", configMINIMAL_STACK_SIZE * 4, NULL, 1, &Handle_Get_Angle_Task);  //create task
+  // xTaskCreate(Get_Angle_Task, "Get_Angle_Task", configMINIMAL_STACK_SIZE * 4, NULL, 1, &Handle_Get_Angle_Task);  //create task
+
   // Create the update screen task
-  xTaskCreate(updateScreenTask, "UpdateScreenTask", configMINIMAL_STACK_SIZE * 4, NULL, 2, &updateTaskHandle);
-  Serial.println("update task created");
+  // xTaskCreate(updateScreenTask, "UpdateScreenTask", configMINIMAL_STACK_SIZE * 4, NULL, 2, &updateTaskHandle);
+  // Serial.println("update task created");
 
-  xTaskCreate(ledTask, "LEDTask", configMINIMAL_STACK_SIZE * 4, NULL, 4, &ledTaskHandle);
-  Serial.println("LED task created");
+  // xTaskCreate(ledTask, "LEDTask", configMINIMAL_STACK_SIZE * 4, NULL, 4, &ledTaskHandle);
+  // Serial.println("LED task created");
 
   xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &turnSignalTaskHandle);
-  Serial.println("Turn signal task created");
+  Serial1.println("Turn signal task created");
 
   //xTaskCreate(dataDisplayTask1, "dataDisplayTask1", configMINIMAL_STACK_SIZE*4, NULL, 2, &dataDisplayTask1Handle);
   //Serial.println("data display 1 task created");
@@ -663,11 +657,11 @@ void setup() {
   //xTaskCreate(dataDisplayTask2, "dataDisplayTask2", configMINIMAL_STACK_SIZE*4, NULL, 2, &dataDisplayTask2Handle);
   //Serial.println("data display 2 task created");
 
-  xTaskCreate(dataDisplayTask3, "dataDisplayTask3", configMINIMAL_STACK_SIZE * 4, NULL, 3, &dataDisplayTask3Handle);
-  Serial.println("data display 3 task created");
+  // xTaskCreate(dataDisplayTask3, "dataDisplayTask3", configMINIMAL_STACK_SIZE * 4, NULL, 3, &dataDisplayTask3Handle);
+  // Serial.println("data display 3 task created");
   
-  xTaskCreate(mainControlTask, "mainControlTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &mainControlTaskHandle);
-  Serial.println("Main Control Task Created!!!");
+  // xTaskCreate(mainControlTask, "mainControlTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &mainControlTaskHandle);
+  // Serial.println("Main Control Task Created!!!");
 
   //xTaskCreate(sliderDisplayTask, "sliderDisplayTask", configMINIMAL_STACK_SIZE*4, NULL, 4, &sliderDisplayTaskHandle);
   //Serial.println("slider display task created");
@@ -677,4 +671,5 @@ void setup() {
 
 void loop() {
   // Main Arduino loop, not used in this example
+  //Serial1.println("Test print");
 }
