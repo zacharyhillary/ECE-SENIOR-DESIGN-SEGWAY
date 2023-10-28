@@ -8,6 +8,7 @@
 #include "keypad.h"
 #include "mpu_6050_drivers.h"
 #include "utility_drivers.h"
+// #include "motor_drivers.h"
 
 #define TFT_CLK 52
 #define TFT_MISO 50
@@ -114,13 +115,13 @@ TaskHandle_t dataDisplayTask1Handle;
 TaskHandle_t dataDisplayTask2Handle;
 TaskHandle_t dataDisplayTask3Handle;
 TaskHandle_t turnSignalTaskHandle;
+TaskHandle_t batteryLevelTaskHandle;
 TaskHandle_t sliderDisplayTaskHandle;
 TaskHandle_t Handle_Get_Angle_Task;
 SemaphoreHandle_t xSemaphore;
 SemaphoreHandle_t I2CSemaphore;
 
 const int buttonPin = 2;
-
 
 int sliderValue = 0;
 int s1x = SliderX_Right, s1y, s2x = SliderX_Right, s2y, s3x = SliderX_Right, s3y;
@@ -228,48 +229,54 @@ void buttonInterrupt() {
 
 // This sets the right number value depending on the
 // x position of the slider
-void setLabelValue(double value, int slider) { 
-  //Serial.println("Show Slider Value"); 
-  int sliderX; 
-  int sliderY; 
-  switch (slider) { 
-    case 1: { 
-        sliderX = LabelX_Right; 
-        sliderY = SliderY_1; 
-        break; 
-      } 
-    case 2: { 
-        sliderX = LabelX_Right; 
-        sliderY = SliderY_2; 
-        break; 
-      } 
-    case 3: { 
-        sliderX = LabelX_Right; 
-        sliderY = SliderY_3; 
-        break; 
-      } 
-    case 4: { 
-        sliderX = LabelX_Left; 
-        sliderY = SliderY_1; 
-        break; 
-      } 
-    case 5: { 
-        sliderX = LabelX_Left; 
-        sliderY = SliderY_2; 
-        break; 
-      } 
-    case 6: { 
-        sliderX = LabelX_Left; 
-        sliderY = SliderY_3; 
-        break; 
-      } 
-  } 
-  dtostrf(value, 3, 2, sliderValueStr); 
-  tft.setCursor(sliderX, sliderY - 5); 
-  tft.setTextColor(WHITE, BLACK); 
-  tft.setTextSize(1); 
-  tft.print(sliderValueStr); 
-} 
+void setLabelValue(double value, int slider) {
+  //Serial.println("Show Slider Value");
+  int sliderX;
+  int sliderY;
+  switch (slider) {
+    case 1:
+      {
+        sliderX = LabelX_Right;
+        sliderY = SliderY_1;
+        break;
+      }
+    case 2:
+      {
+        sliderX = LabelX_Right;
+        sliderY = SliderY_2;
+        break;
+      }
+    case 3:
+      {
+        sliderX = LabelX_Right;
+        sliderY = SliderY_3;
+        break;
+      }
+    case 4:
+      {
+        sliderX = LabelX_Left;
+        sliderY = SliderY_1;
+        break;
+      }
+    case 5:
+      {
+        sliderX = LabelX_Left;
+        sliderY = SliderY_2;
+        break;
+      }
+    case 6:
+      {
+        sliderX = LabelX_Left;
+        sliderY = SliderY_3;
+        break;
+      }
+  }
+  dtostrf(value, 3, 2, sliderValueStr);
+  tft.setCursor(sliderX, sliderY - 5);
+  tft.setTextColor(WHITE, BLACK);
+  tft.setTextSize(1);
+  tft.print(sliderValueStr);
+}
 
 void sliderHandler(int sliderYPos, int Thumb_Y, int x, int x1, int slider) {
   char sliderLabel;
@@ -530,26 +537,26 @@ void updateScreenTask(void* pvParameters) {
           Serial.print("New page: ");
           Serial.println(pageNum);
           double newSliderValue = inputArrayToDecimal(keyPadInput);
-        
+
           switch (selectedLabel) {
-            case 1: 
-                sliderOne = newSliderValue; 
-                break;
-            case 2: 
-                sliderTwo = newSliderValue; 
-                break;
-            case 3: 
-                sliderThree = newSliderValue; 
-                break;
-            case 4: 
-                sliderFour = newSliderValue; 
-                break;
-            case 5: 
-                sliderFive = newSliderValue; 
-                break;
-            case 6: 
-                sliderSix = newSliderValue; 
-                break;
+            case 1:
+              sliderOne = newSliderValue;
+              break;
+            case 2:
+              sliderTwo = newSliderValue;
+              break;
+            case 3:
+              sliderThree = newSliderValue;
+              break;
+            case 4:
+              sliderFour = newSliderValue;
+              break;
+            case 5:
+              sliderFive = newSliderValue;
+              break;
+            case 6:
+              sliderSix = newSliderValue;
+              break;
           }
           pFlag = true;
         }
@@ -589,11 +596,11 @@ void turnSignalTask() {
   while (1) {
     Serial1.println("Turn signal task hit");
     int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
-    Serial1.print("pin1: ");
-    Serial1.println(pin1);
+    //Serial1.print("pin1: ");
+    //Serial1.println(pin1);
     int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
-    Serial1.print("pin2: ");
-    Serial1.println(pin2);
+    //Serial1.print("pin2: ");
+    //Serial1.println(pin2);
     if (pin1 == LOW) {
       digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
       signalLevelOne = !signalLevelOne;
@@ -608,6 +615,39 @@ void turnSignalTask() {
     }
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 1 second
   }
+}
+
+int percent_battery;
+void batteryLevelTask() {
+  pinMode(A2, INPUT);
+  analogReference(INTERNAL2V56);
+  while(1) {
+    int raw_data_in = analogRead(A2);  // read the input pin
+    double voltage_input = 5.0 * raw_data_in / 1024.0;
+    double voltage_battery = voltage_input * 15.523;
+    percent_battery = voltage_battery * (121.0 / 26.0) - 21;
+    if (voltage_battery < 21) percent_battery = 0;
+    batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+
+void batteryDebug(int raw_data_in, double voltage_input, double voltage_battery) {
+  Serial1.print("\rRAW ADC: ");
+  Serial1.println(raw_data_in);
+  Serial1.print("VOLTAGE INPUT: ");
+  Serial1.print(voltage_input);
+  Serial1.println(" [V]");
+
+  Serial1.print("Battery Voltage: ");
+  Serial1.print(voltage_battery);
+  Serial1.println(" [V]");
+
+  Serial1.print("Battery Percentage: ");
+  Serial1.print(percent_battery);
+  Serial1.println(" [%]");
+  Serial1.println();
+  Serial1.println();
 }
 
 void setup() {
@@ -633,6 +673,9 @@ void setup() {
   pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
   pinMode(TURN_SIGNAL_INPUT_1, INPUT_PULLUP);
   pinMode(TURN_SIGNAL_INPUT_2, INPUT_PULLUP);
+  // Motor leftMotor = new Motor(2);
+  // Motor rightMotor = new Motor(4);
+   
 
   // xSemaphore = xSemaphoreCreateBinary();
   // I2CSemaphore = xSemaphoreCreateBinary();
@@ -651,6 +694,9 @@ void setup() {
   xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &turnSignalTaskHandle);
   Serial1.println("Turn signal task created");
 
+  xTaskCreate(batteryLevelTask, "batteryLevelTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &batteryLevelTaskHandle);
+  Serial1.println("Battery level task created");
+
   //xTaskCreate(dataDisplayTask1, "dataDisplayTask1", configMINIMAL_STACK_SIZE*4, NULL, 2, &dataDisplayTask1Handle);
   //Serial.println("data display 1 task created");
 
@@ -659,7 +705,7 @@ void setup() {
 
   // xTaskCreate(dataDisplayTask3, "dataDisplayTask3", configMINIMAL_STACK_SIZE * 4, NULL, 3, &dataDisplayTask3Handle);
   // Serial.println("data display 3 task created");
-  
+
   // xTaskCreate(mainControlTask, "mainControlTask", configMINIMAL_STACK_SIZE * 4, NULL, 3, &mainControlTaskHandle);
   // Serial.println("Main Control Task Created!!!");
 
