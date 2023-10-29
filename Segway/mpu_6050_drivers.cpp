@@ -20,13 +20,13 @@ void mpu_setup()
   current_angle = 0;
   mpu.begin();
   mpu.Set_DMP_Output_Rate_Hz(200); // Set the DMP output rate from 200Hz to 5 Minutes.
-  // mpu.CalibrateAccel();
-  // mpu.CalibrateGyro();
-  mpu.setOffset(-2348, -1058, 826, 7, -33, 1);
+   //mpu.CalibrateAccel(100);//takes a long time 500 cycles
+   //mpu.CalibrateGyro(100);//takes a long time 500 cycles
+    //mpu.PrintActiveOffsets();
+  mpu.setOffset(984, -1842, 1414, 89, 41, 7);
   mpu.load_DMP_Image(); // Loads the DMP image into the MPU and finish configuration.
   mpu.DMP_InterruptEnable(1);
-  mpu.on_FIFO(Update_Angle);
-  // Set callback function that is triggered when FIFO Data is retrieved
+  mpu.on_FIFO(Update_Angle);// Set callback function that is triggered when FIFO Data is retrieved
 }
 
 void Update_Angle(int16_t *gyro, int16_t *accel, int32_t *quat)
