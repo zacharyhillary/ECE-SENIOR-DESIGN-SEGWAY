@@ -18,14 +18,29 @@ SabertoothSimplified ST; // We'll name the Sabertooth object ST.
                          // If you want to use a pin other than TX->1, see the SoftwareSerial example.
 
 void GetAngleTask(void* pvParameters) {
+  int motorPower;
   while (1) {
 
     //xSemaphoreTake(I2CSemaphore, pdMS_TO_TICKS(100));
     currentAngle = Get_Angle();  // set global variable to the current angle of the segway
+    if(currentAngle > 30){
+      motorPower = 4.2*30;
+    }
+    else if(currentAngle < -30){
+      motorPower = -4.2*30;
+    }
+    else{
+      motorPower = 4.2*currentAngle;
+    }
+    ST.motor(1,motorPower);
+    ST.motor(2,motorPower);
+
     //xSemaphoreGive(I2CSemaphore);
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
+
+
 
 const double kp = 4;
 const double ki = 0;
@@ -73,18 +88,20 @@ void setup() {
   mpu_setup();
 
   xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE / 2, NULL, 1, NULL);         //create task
-  xTaskCreate(MainControlTask, "MainControlTaslk", configMINIMAL_STACK_SIZE * 1, NULL, 1, NULL);  //create task
+  //xTaskCreate(MainControlTask, "MainControlTaslk", configMINIMAL_STACK_SIZE * 1, NULL, 1, NULL);  //create task
   Serial.println("\n\n\n STARTING RTOS.....");
+  xTas
 }
 
 void loop() {
   // Test loop
-  ST.motor(1, 127);  // Go forward at full power.
-  delay(2000);       // Wait 2 seconds.
-  ST.motor(1, 0);    // Stop.
-  delay(2000);       // Wait 2 seconds.
-  ST.motor(1, -127); // Reverse at full power.
-  delay(2000);       // Wait 2 seconds.
-  ST.motor(1, 0);    // Stop.
-  delay(2000);
+  // ST.motor(1, 127);  // Go forward at full power.
+  // delay(2000);       // Wait 2 seconds.
+  // ST.motor(1, 0);    // Stop.
+  // delay(2000);       // Wait 2 seconds.
+  // ST.motor(1, -127); // Reverse at full power.
+  // delay(2000);       // Wait 2 seconds.
+  // ST.motor(1, 0);    // Stop.
+  // delay(2000);
+  for()
 }
