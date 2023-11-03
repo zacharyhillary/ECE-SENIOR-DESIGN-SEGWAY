@@ -4,7 +4,7 @@
 #include <SabertoothSimplified.h>
 
 double currentAngle;
-
+double steering;
 
 
 
@@ -27,7 +27,7 @@ void GetAngleTask(void* pvParameters) {
   while (1) {
 
     //xSemaphoreTake(I2CSemaphore, pdMS_TO_TICKS(100));
-    currentAngle = Get_Angle()+7;  // set global variable to the current angle of the segway
+    currentAngle = -1*(Get_Angle()+7);  // set global variable to the current angle of the segway
     // if(currentAngle > 30){
     //   motorPower = 4.2*30;
     // }
@@ -41,7 +41,7 @@ void GetAngleTask(void* pvParameters) {
     // ST.motor(2,motorPower);
 
     //xSemaphoreGive(I2CSemaphore);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(16));
   }
 }
 
@@ -88,7 +88,7 @@ void MainControlTask(void* pvParameters) {
       output = 127;
     }
     if(output < -127){
-      output = -127;
+      output = -80;
     }
     if(currentAngle > 45 || currentAngle < -45){
       output = 0;
@@ -96,14 +96,51 @@ void MainControlTask(void* pvParameters) {
       ST.motor(2, -1*output);
       vTaskEndScheduler();
     }
-    //Serial1.print("Output: ");
-    //Serial1.println(output);
-    ST.motor(1, -1*output);
-    ST.motor(2, -1*output);
+    int leftMotorOutput;
+    int rightMotorOutput;
+    if(steering >=1){
+      rightMotorOutput = output-0.15*steering;//right turn
+      leftMotorOutput = output+0.15*steering;
+    }
+    else if(steering <=-1){//left turn
+      leftMotorOutput = output + 0.15*steering;//left turn
+      rightMotorOutput = output-0.15*steering;
+    }
+    else {
+      leftMotorOutput=output;
+      rightMotorOutput = output;
+    }
+    ST.motor(1, leftMotorOutput);//left motor
+    ST.motor(2, rightMotorOutput);//right motor
+    
     vTaskDelay(pdMS_TO_TICKS(25));  // ~60 Hz need to implement with different timing source if we want more precise timing
   }
 }
 
+
+void PushButtonTask(void* pvParameters){
+  int leftSteeringPin=A2;
+  int rightSteeringPin=A3;
+  pinMode(leftSteeringPin, INPUT); 
+  pinMode(rightSteeringPin, INPUT); 
+  while(1){
+    int rawRead = analogRead(leftSteeringPin);
+    Serial.print("right: ");
+    Serial.println(rawRead);
+    double rightSteering = -1*(((double)analogRead(rightSteeringPin)-40.0 )*(1.0/9.0)-100);
+    double leftSteering = -1*(((double)analogRead(leftSteeringPin)-14.0 )*(1.0/9.0)-100);
+  steering = rightSteering - leftSteering;// ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
+  if((steering<=20) && (steering >=-20))steering=0;// steering deadzone;
+      /* Serial.print("Right Steering: ");
+       Serial.print(rightSteering);
+       Serial.print(" Left Steering: ");
+       Serial.print(leftSteering);
+       Serial.print(" Total Steering: ");
+       Serial.println(steering);
+    */
+  vTaskDelay(pdMS_TO_TICKS(60));
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -119,6 +156,7 @@ void setup() {
   Serial1.begin(9600);
   xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL);         //create task
   xTaskCreate(MainControlTask, "MainControlTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
+  xTaskCreate(PushButtonTask, "PushButtonTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
   // Serial1.println("\n\n\n STARTING RTOS.....");
   vTaskStartScheduler();
 }
