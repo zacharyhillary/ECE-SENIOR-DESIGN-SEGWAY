@@ -74,22 +74,22 @@ void MainControlTask(void* pvParameters) {
     double derivative = error - previousError;
     double output = kp * error + integral + kd * derivative;
     previousError = error;
-    if (iteration == 25) {  // if we print every time we bog down the processor
-      Serial1.print("  kp: ");
-      Serial1.print(kp);
-      Serial1.print("  ki: ");
-      Serial1.print(ki);
-      Serial1.print("  kd: ");
-      Serial1.print(kd);
-      Serial1.print("  P+I+D:  ");
-      Serial1.print(output);
-      Serial1.print("  currentAngle:  ");
-      Serial1.print(currentAngle);
-      Serial1.print(" integral:  ");
-      Serial1.println(integral);
-      iteration = 0;
-    }
-    iteration++;
+    // if (iteration == 25) {  // if we print every time we bog down the processor
+      // Serial1.print("  kp: ");
+      // Serial1.print(kp);
+      // Serial1.print("  ki: ");
+      // Serial1.print(ki);
+      // Serial1.print("  kd: ");
+      // Serial1.print(kd);
+      // Serial1.print("  P+I+D:  ");
+      // Serial1.print(output);
+      // Serial1.print("  currentAngle:  ");
+      // Serial1.print(currentAngle);
+      // Serial1.print(" integral:  ");
+      // Serial1.println(integral);
+    //   iteration = 0;
+    // }
+    // iteration++;
     // LeftMotor.setSpeed(output);
     // RightMotor.setSpeed(output):
     if(output > 127){
@@ -100,9 +100,9 @@ void MainControlTask(void* pvParameters) {
     }
     if(currentAngle > 45 || currentAngle < -45){
       output = 0;
-      ST.motor(1, -1*output);
-      ST.motor(2, -1*output);
-      vTaskEndScheduler();
+      ST.motor(1, output);
+      ST.motor(2, output);
+      //vTaskEndScheduler();
     }
     int leftMotorOutput;
     int rightMotorOutput;
@@ -115,13 +115,13 @@ void MainControlTask(void* pvParameters) {
       rightMotorOutput = output-0.15*steering;
     }
     else {
-      leftMotorOutput=output;
+      leftMotorOutput = output;
       rightMotorOutput = output;
     }
     ST.motor(1, leftMotorOutput);//left motor
     ST.motor(2, rightMotorOutput);//right motor
     
-    vTaskDelay(pdMS_TO_TICKS(25));  // ~60 Hz need to implement with different timing source if we want more precise timing
+    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want more precise timing
   }
 }
 
@@ -137,8 +137,8 @@ void PushButtonTask(void* pvParameters){
     Serial.println(rawRead);
     double rightSteering = -1*(((double)analogRead(rightSteeringPin)-40.0 )*(1.0/9.0)-100);
     double leftSteering = -1*(((double)analogRead(leftSteeringPin)-14.0 )*(1.0/9.0)-100);
-  steering = rightSteering - leftSteering;// ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
-  if((steering<=20) && (steering >=-20))steering=0;// steering deadzone;
+    steering = rightSteering - leftSteering;// ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
+    if((steering<=20) && (steering >=-20))steering=0;// steering deadzone;
       /* Serial.print("Right Steering: ");
        Serial.print(rightSteering);
        Serial.print(" Left Steering: ");
@@ -146,7 +146,42 @@ void PushButtonTask(void* pvParameters){
        Serial.print(" Total Steering: ");
        Serial.println(steering);
     */
-  vTaskDelay(pdMS_TO_TICKS(60));
+    vTaskDelay(pdMS_TO_TICKS(60));
+  }
+}
+
+
+#define TURN_SIGNAL_OUTPUT_1 26
+#define TURN_SIGNAL_OUTPUT_2 27
+#define TURN_SIGNAL_INPUT_1 28
+#define TURN_SIGNAL_INPUT_2 29
+bool signalLevelOne = true;
+bool signalLevelTwo = true;
+void turnSignalTask(void *pvParameters) {
+  pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
+  pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
+  pinMode(TURN_SIGNAL_INPUT_1, INPUT_PULLUP);
+  pinMode(TURN_SIGNAL_INPUT_2, INPUT_PULLUP);
+  while (1) {
+    int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
+    // Serial1.print("pin1: ");
+    // Serial1.println(pin1);
+    int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
+    // Serial1.print("pin2: ");
+    // Serial1.println(pin2);
+    if (pin1 == LOW) {
+      digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
+      signalLevelOne = !signalLevelOne;
+    } else {
+      digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
+    }
+    if (pin2 == LOW) {
+      digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
+      signalLevelTwo = !signalLevelTwo;
+    } else {
+      digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
+    }
+    vTaskDelay(16);  // Delay for 0.25 seconds
   }
 }
 
@@ -165,6 +200,7 @@ void setup() {
   xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL);         //create task
   xTaskCreate(MainControlTask, "MainControlTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
   xTaskCreate(PushButtonTask, "PushButtonTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
+  xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 2, NULL, 2 , NULL); //create task
   // Serial1.println("\n\n\n STARTING RTOS.....");
   vTaskStartScheduler();
 }
