@@ -53,6 +53,7 @@ const double ki = 0;
 const double configKd = 12.5;
 double kd = configKd;
 const double dt = 0;
+const double LEFT_MOTOR_SCALE = 1.15;
 void MainControlTask(void* pvParameters) {
   double previousError = 0;
   double integral = 0;
@@ -107,15 +108,13 @@ void MainControlTask(void* pvParameters) {
     int leftMotorOutput;
     int rightMotorOutput;
     if(steering >=1){
-      rightMotorOutput = output-0.15*steering;//right turn
+      rightMotorOutput = output * LEFT_MOTOR_SCALE - 0.15 * steering;//right turn
       leftMotorOutput = output+0.15*steering;
-    }
-    else if(steering <=-1){//left turn
-      leftMotorOutput = output + 0.15*steering;//left turn
-      rightMotorOutput = output-0.15*steering;
-    }
-    else {
-      leftMotorOutput = output;
+    } else if(steering <=-1){//left turn
+      leftMotorOutput = output * LEFT_MOTOR_SCALE + 0.15 * steering;//left turn
+      rightMotorOutput = output - 0.15 * steering;
+    } else {
+      leftMotorOutput = output * LEFT_MOTOR_SCALE;
       rightMotorOutput = output;
     }
     ST.motor(1, leftMotorOutput);//left motor
