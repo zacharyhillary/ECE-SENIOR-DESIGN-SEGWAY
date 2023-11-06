@@ -47,17 +47,25 @@ void GetAngleTask(void* pvParameters) {
 
 
 
-const double kp = 6;
+const double configKp = 9;
+double kp = configKp;
 const double ki = 0;
-const double kd = 0;
+const double configKd = 12.5;
+double kd = configKd;
 const double dt = 0;
 void MainControlTask(void* pvParameters) {
   double previousError = 0;
   double integral = 0;
   char iteration = 0;
-  vTaskDelay(pdMS_TO_TICKS(2000));
+  vTaskDelay(pdMS_TO_TICKS(500));
+  long initialMillis = millis();
+  kp = 2;
+  kd = 0;
   while (1) {
-
+    if (millis() - initialMillis >= 1000) {
+      kp = configKp;
+      kd = configKd;
+    }
     double setpoint = 0;  //we want segway to balance at 0deg -> may need to tweak this value.
     double processVariable = currentAngle;
 
