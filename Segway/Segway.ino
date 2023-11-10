@@ -39,7 +39,7 @@ double ComputePID(double kp, double ki,double kd,double setpoint, double process
 double output;
 void MainControlTask(void* pvParameters) {
  
-  bool previousRiderMode = !riderMode;
+  bool previousRiderMode = !riderMode;// SET IT so it goes into if statement on first loop
   vTaskDelay(pdMS_TO_TICKS(500));// LET IMU STABILISE
   long timerMillis;
 
@@ -94,10 +94,10 @@ void MainControlTask(void* pvParameters) {
 
     output=ComputePID(kp,ki,kd,setpoint,currentAngle);
    
-    if (output > 127) {
+    if (output > 127) {//bound the output
       output = 127;
     }
-    if (output < -127) {
+    if (output < -127) {//bound the output
       output = -127;
     }
    
@@ -126,7 +126,7 @@ void MainControlTask(void* pvParameters) {
     ST.motor(2, rightMotorOutput);  // right motor
 
 
-    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want more precise timing
+    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want faster timing
   }
 }
 
