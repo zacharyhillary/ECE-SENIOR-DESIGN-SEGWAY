@@ -67,10 +67,11 @@ struct RiderlessModeConfig {
 // double kd = configKd;
 // const double dt = 0;
 bool riderMode = false;
-int SteeringScaler(char output){
-  return (0.3  - output*0.0022)*steering;
+int SteeringScaler(char output) {
+  return (0.3 - output * 0.0022) * steering;
 }
 
+double output;
 void MainControlTask(void* pvParameters) {
   RiderModeConfig riderModeConfig = RiderModeConfig();
   RiderlessModeConfig riderlessModeConfig = RiderlessModeConfig();
@@ -144,7 +145,7 @@ void MainControlTask(void* pvParameters) {
     double error = setpoint + currentAngleOffset - processVariable;
     integral += ki * error;
     double derivative = error - previousError;
-    double output = kp * error + integral + kd * derivative;
+    output = kp * error + integral + kd * derivative;
     previousError = error;
     if (iteration == 8) {  // if we print every time we bog down the processor
       Serial1.print("Error:");
@@ -251,7 +252,7 @@ void MainControlTask(void* pvParameters) {
     if (steering >= 1) {
       rightMotorOutput = output * LEFT_MOTOR_SCALE - steering;  //right turn
       leftMotorOutput = output + steering;
-    } else if (steering <= -1) {                                      //left turn
+    } else if (steering <= -1) {                               //left turn
       leftMotorOutput = output * LEFT_MOTOR_SCALE + steering;  //left turn
       rightMotorOutput = output - steering;
     } else {
@@ -290,7 +291,7 @@ void PushButtonTask(void* pvParameters) {
     double rightSteering = -1 * (((double)analogRead(rightSteeringPin) - 40.0) * (1.0 / 9.0) - 100);
     double leftSteering = -1 * (((double)analogRead(leftSteeringPin) - 14.0) * (1.0 / 9.0) - 100);
     steering = rightSteering - leftSteering;                  // ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
-    steering = (0.3  - output*0.0022)*steering// 0.3*steering at 0 output and and .1*steering at 90
+    steering = (0.3 - output * 0.0022) * steering;            // 0.3*steering at 0 output and and .1*steering at 90
     if ((steering <= 20) && (steering >= -20)) steering = 0;  // steering deadzone;
     /* Serial.print("Right Steering: ");
        Serial.print(rightSteering);
