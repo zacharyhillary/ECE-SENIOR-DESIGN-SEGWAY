@@ -132,7 +132,7 @@ void MainControlTask(void* pvParameters) {
     ST.motor(2, rightMotorOutput);  // right motor
 
 
-    vTaskDelay(1);  // ~60 Hz need to implement with different timing source if we want faster timing
+    vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
   }
 }
 
@@ -146,8 +146,6 @@ void SteeringTask(void* pvParameters) {
   pinMode(rightSteeringPin, INPUT);
   while (1) {
     int rawRead = analogRead(leftSteeringPin);
-    Serial.print("right: ");
-    Serial.println(rawRead);
     double rightSteering = -1 * (((double)analogRead(rightSteeringPin) - 40.0) * (1.0 / 9.0) - 100);
     double leftSteering = -1 * (((double)analogRead(leftSteeringPin) - 14.0) * (1.0 / 9.0) - 100);
     steering = rightSteering - leftSteering;                  // ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
@@ -186,7 +184,7 @@ void turnSignalTask(void* pvParameters) {
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
-    vTaskDelay(16);  // Delay for 0.25 seconds
+    vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
   }
 }
 
