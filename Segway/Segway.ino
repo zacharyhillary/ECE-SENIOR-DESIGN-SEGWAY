@@ -122,6 +122,12 @@ void MainControlTask(void* pvParameters) {
       leftMotorOutput = output;
       rightMotorOutput = output;
     }
+
+    if(leftMotorOutput>0 && leftMotorOutput<=3)leftMotorOutput=7;           //motor deadzone
+    else if(leftMotorOutput<=0 && leftMotorOutput>=-3)leftMotorOutput=-7;
+    if(rightMotorOutput>0 && rightMotorOutput<=3)rightMotorOutput=5;
+    else if(rightMotorOutput<=0 && rightMotorOutput>=-3)rightMotorOutput=-5;
+
     ST.motor(1, leftMotorOutput);   // left motor
     ST.motor(2, rightMotorOutput);  // right motor
 
