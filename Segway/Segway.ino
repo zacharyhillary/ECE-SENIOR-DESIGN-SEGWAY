@@ -56,7 +56,7 @@ void MainControlTask(void* pvParameters) {
   const double noRiderKd = 15;
   const double noRiderSetpoint = 7.4;
 
-  const double LEFT_MOTOR_SCALE = 1.10; // 10 percent increase
+  const double LEFT_MOTOR_SCALE = 1.10;  // 10 percent increase
 
   double kp;
   double ki;
@@ -129,8 +129,8 @@ void MainControlTask(void* pvParameters) {
     // if (rightMotorOutput > 0 && rightMotorOutput <= 5) rightMotorOutput = 5;
     // else if (rightMotorOutput <= 0 && rightMotorOutput >= -5) rightMotorOutput = -5;
 
-    ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);   // left motor
-    ST.motor(2, rightMotorOutput);  // right motor
+    ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
+    ST.motor(2, rightMotorOutput);                    // right motor
 
 
     vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
@@ -155,7 +155,7 @@ void SteeringTask(void* pvParameters) {
   int rightSteeringPin = A3;
   int targetSteering = 0;
   int currentSteering = 0;
-  int lastThreeInputs[] = {0, 0, 0};
+  int lastThreeInputs[] = { 0, 0, 0 };
   pinMode(leftSteeringPin, INPUT);
   pinMode(rightSteeringPin, INPUT);
   while (1) {
@@ -186,12 +186,44 @@ void SteeringTask(void* pvParameters) {
 
 
 
-    steering = (0.3 - output * 0.0022) * currentSteering;            // 0.3*steering at 0 output and and .1*steering at 90
+    steering = (0.3 - output * 0.0022) * currentSteering;  // 0.3*steering at 0 output and and .1*steering at 90
     //if ((steering <= 20) && (steering >= -20)) steering = 0;  // steering deadzone;
     vTaskDelay(pdMS_TO_TICKS(75));
   }
 }
 
+void DistanceSensorTask(void* pvParameters) {
+  const int trigEchoPin = 11;  //connects to the trigger pin on the distance sensor
+  int distance;
+  int distanceArray[3] = { 50, 50, 50 };
+  while (1) {
+    float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
+    //send out an ultrasonic pulse that's 10ms long
+    pinMode(trigEchoPin, OUTPUT);
+    digitalWrite(trigEchoPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigEchoPin, LOW);
+    pinMode(trigEchoPin, INPUT);
+    echoTime = pulseIn(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
+
+    distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
+    distanceArray[0] = distanceArray[1];
+    distanceArray[1] = distanceArray[2];
+    distanceArray[2] = distance;
+
+
+    if ((distanceArray[0] > 40) && (distanceArray[1] > 40) && (distanceArray[2] > 40)) {
+      riderMode = false;
+    } else if ((distanceArray[0] < 40) && (distanceArray[1] < 40) && (distanceArray[2] < 40)) {
+      riderMode = true;
+    }
+    Serial1.print("Rider mode is: ");
+    Serial1.println(riderMode);
+    Serial1.print("Distance is: ");
+    Serial1.println(distance);
+    vTaskDelay(pdMS_TO_TICKS(250));
+  }
+}
 
 #define TURN_SIGNAL_OUTPUT_1 26
 #define TURN_SIGNAL_OUTPUT_2 27
@@ -208,16 +240,14 @@ void turnSignalTask(void* pvParameters) {
     int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
     int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
     if (pin1 == LOW) {
-      //digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
-      //signalLevelOne = !signalLevelOne;//toggle
-      riderMode = true;
+      digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
+      signalLevelOne = !signalLevelOne;
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
-      riderMode = false;
     }
     if (pin2 == LOW) {
-      //digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
-      //signalLevelTwo = !signalLevelTwo;
+      digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
+      signalLevelTwo = !signalLevelTwo;
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
@@ -231,10 +261,12 @@ void setup() {
   ST.motor(2, 0);
   mpu_setup();
   Serial1.begin(9600);
-  xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
-  xTaskCreate(MainControlTask, "MainControlTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
-  xTaskCreate(SteeringTask, "PushButtonTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
-  xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);     //create task
+  Serial1.println("starting rtos....");
+   xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
+   xTaskCreate(MainControlTask, "MainControlTask", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
+   xTaskCreate(SteeringTask, "PushButtonTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
+   xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
+  //xTaskCreate(DistanceSensorTask, "DistanceSensorTask", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   vTaskStartScheduler();
 }
 
