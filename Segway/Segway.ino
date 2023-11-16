@@ -6,11 +6,13 @@
 double currentAngle;
 double steering;
 
-
+#define TURN_SIGNAL_OUTPUT_1 26
+#define TURN_SIGNAL_OUTPUT_2 27
+#define TURN_SIGNAL_INPUT_1 28
+#define TURN_SIGNAL_INPUT_2 29
 
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
-
 
 void GetAngleTask(void* pvParameters) {
   int motorPower;
@@ -63,6 +65,9 @@ void MainControlTask(void* pvParameters) {
   double kd;
   bool resetConfig;
   double setpoint;
+
+  // long previousMillis = millis();
+  // long currentMillis = millis();
 
   while (1) {
     if (previousRiderMode != riderMode) {  //gets activated when you switch rider mode AND FIRST TIME BOOT UP
@@ -131,7 +136,11 @@ void MainControlTask(void* pvParameters) {
 
     ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
     ST.motor(2, rightMotorOutput);                    // right motor
-
+    
+    // currentMillis = millis();
+    // Serial.print("Difference:  |  ");
+    // Serial.println(currentMillis - previousMillis);
+    // previousMillis = currentMillis;
 
     vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
   }
@@ -144,10 +153,13 @@ enum SteeringDirection {
   NONE
 };
 
-void pushNextInput(int* lastThreeInputs, int nextInput) {
-  lastThreeInputs[0] = lastThreeInputs[1];
-  lastThreeInputs[1] = lastThreeInputs[2];
-  lastThreeInputs[2] = nextInput;
+void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
+  int index = 0;
+  while(index < arrayLength - 1) {
+    arrayOfInputs[index] = arrayOfInputs[index+1];
+    index++;
+  }
+  arrayOfInputs[index] = nextInput;
 }
 
 void SteeringTask(void* pvParameters) {
@@ -163,13 +175,13 @@ void SteeringTask(void* pvParameters) {
     double leftSteeringRaw = analogRead(leftSteeringPin);
     if (rightSteeringRaw < 700 && leftSteeringRaw > 700) {
       targetSteering = 100;
-      pushNextInput(lastThreeInputs, 100);
+      pushToArray(lastThreeInputs, 100, 3);
     } else if (rightSteeringRaw > 700 && leftSteeringRaw < 700) {
       targetSteering = -100;
-      pushNextInput(lastThreeInputs, -100);
+      pushToArray(lastThreeInputs, -100, 3);
     } else {
       targetSteering = 0;
-      pushNextInput(lastThreeInputs, 0);
+      pushToArray(lastThreeInputs, 0, 3);
     }
 
     if (lastThreeInputs[0] == 0 && lastThreeInputs[1] == 0 && lastThreeInputs[2] == 0) {
@@ -192,10 +204,33 @@ void SteeringTask(void* pvParameters) {
   }
 }
 
+bool checkEachLessThan(int* array, int value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] >= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
+bool checkEachGreaterThan(int* array, int value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] <= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
 void DistanceSensorTask(void* pvParameters) {
+  // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
   const int trigEchoPin = 11;  //connects to the trigger pin on the distance sensor
   int distance;
-  int distanceArray[3] = { 50, 50, 50 };
+  int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
   while (1) {
     float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
     //send out an ultrasonic pulse that's 10ms long
@@ -204,31 +239,25 @@ void DistanceSensorTask(void* pvParameters) {
     delayMicroseconds(10);
     digitalWrite(trigEchoPin, LOW);
     pinMode(trigEchoPin, INPUT);
-    echoTime = pulseIn(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
+    echoTime = pulseInLong(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
 
     distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
-    distanceArray[0] = distanceArray[1];
-    distanceArray[1] = distanceArray[2];
-    distanceArray[2] = distance;
+    pushToArray(distanceArray, distance, 6);
 
-
-    if ((distanceArray[0] > 40) && (distanceArray[1] > 40) && (distanceArray[2] > 40)) {
+    if (checkEachGreaterThan(distanceArray, 20, 6)) {
       riderMode = false;
-    } else if ((distanceArray[0] < 40) && (distanceArray[1] < 40) && (distanceArray[2] < 40)) {
+    } else if (checkEachLessThan(distanceArray, 20, 6)) {
       riderMode = true;
     }
-    Serial1.print("Rider mode is: ");
-    Serial1.println(riderMode);
-    Serial1.print("Distance is: ");
-    Serial1.println(distance);
+    // Serial.print("Rider mode is: ");
+    // Serial.println(riderMode);
+    // Serial.print("Distance is: ");
+    // Serial.println(distance);
+    // digitalWrite(TURN_SIGNAL_OUTPUT_1, riderMode);
     vTaskDelay(pdMS_TO_TICKS(250));
   }
 }
 
-#define TURN_SIGNAL_OUTPUT_1 26
-#define TURN_SIGNAL_OUTPUT_2 27
-#define TURN_SIGNAL_INPUT_1 28
-#define TURN_SIGNAL_INPUT_2 29
 bool signalLevelOne = true;
 bool signalLevelTwo = true;
 void turnSignalTask(void* pvParameters) {
@@ -262,11 +291,11 @@ void setup() {
   mpu_setup();
   Serial1.begin(9600);
   Serial1.println("starting rtos....");
-   xTaskCreate(GetAngleTask, "GetAngleTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
-   xTaskCreate(MainControlTask, "MainControlTask", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
-   xTaskCreate(SteeringTask, "PushButtonTaslk", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
-   xTaskCreate(turnSignalTask, "turnSignalTask", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
-  //xTaskCreate(DistanceSensorTask, "DistanceSensorTask", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
+  xTaskCreate(GetAngleTask, "gat", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
+  xTaskCreate(MainControlTask, "mct", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
+  xTaskCreate(SteeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
+  xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
+  xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   vTaskStartScheduler();
 }
 
