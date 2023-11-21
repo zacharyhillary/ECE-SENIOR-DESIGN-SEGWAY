@@ -446,6 +446,12 @@ void setup() {
   SWSerial.begin(9600);
   ST.motor(1, 0);
   ST.motor(2, 0);
+
+  //screen init
+  tft.begin();
+  tft.setRotation(3);
+  tft.fillScreen(ILI9341_BLACK);
+
   mpu_setup();
   Serial1.begin(9600);
   Serial1.println("starting rtos....");
