@@ -2,9 +2,38 @@
 #include "mpu_6050_drivers.h"
 #include <SoftwareSerial.h>
 #include <SabertoothSimplified.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_FT6206.h>
+#include <Adafruit_ILI9341.h>
+#include "semphr.h"
+#include <task.h>
+
+//screen pins
+#define TFT_CLK 52
+#define TFT_MISO 50
+#define TFT_MOSI 51
+#define TFT_CS 10
+//#define TFT_RST 8
+#define TFT_DC 9
+
+// Common 16-bit color values:
+#define BLACK 0x0000
+#define BLUE 0x001F
+#define RED 0xF800
+#define GREEN 0x07E0
+#define CYAN 0x07FF
+#define MAGENTA 0xF81F
+#define YELLOW 0xFFE0
+#define WHITE 0xFFFF
+
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 double currentAngle;
 double steering;
+
+double displayAngle;
+
 
 #define TURN_SIGNAL_OUTPUT_1 26
 #define TURN_SIGNAL_OUTPUT_2 27
@@ -14,13 +43,21 @@ double steering;
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 
+SemaphoreHandle_t batterySemaphore;
+SemaphoreHandle_t angleSemaphore;
+
+
 void GetAngleTask(void* pvParameters) {
   int motorPower;
   while (1) {
+    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
     currentAngle = -1 * (Get_Angle() + 7);  // set global variable to the current angle of the segway
+    xSemaphoreGive(angleSemaphore);
+    }
     vTaskDelay(pdMS_TO_TICKS(16));
   }
 }
+
 
 
 
@@ -98,7 +135,11 @@ void MainControlTask(void* pvParameters) {
       resetConfig = false;
     }
 
+    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
+    {
     output = ComputePID(kp, ki, kd, setpoint, currentAngle);
+    xSemaphoreGive(angleSemaphore);
+    }
 
     if (output > 127) {  //bound the output
       output = 127;
@@ -283,6 +324,77 @@ void turnSignalTask(void* pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
   }
 }
+
+//battery level
+int percent_battery;
+void batteryLevelTask() {
+  pinMode(A2, INPUT);
+  analogReference(INTERNAL2V56);
+  while(1) {
+    if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish 
+      int raw_data_in = analogRead(A2);  // read the input pin
+      double voltage_input = 5.0 * raw_data_in / 1024.0;
+      double voltage_battery = voltage_input * 15.523;
+      percent_battery = voltage_battery * (121.0 / 26.0) - 21;
+      if (voltage_battery < 21) percent_battery = 0;
+    //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
+    }
+    vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
+
+#define FRAME_W 150
+#define FRAME_H 50
+#define angleDisplayX  235
+#define angleDiplayY  40
+#define battDisplayX 235
+#define battDisplayY 60
+
+
+void updateScreenTask(void* pvParameters) {
+  bool touchInProgress = false;
+  int displayAngle = 0;
+  int displayBattLevel = 0;
+  int tempAngle = 0;
+  int tempBattLevel = 0;
+  while (1) {
+    
+    //display battery %
+    if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
+      tempBattLevel = percent_battery;
+      xSemaphoreGive(batterySemaphore);
+    }
+    if(tempBattLevel != displayBattLevel){//refresh only when battery level changes
+      displayBattLevel = tempBattLevel;
+      tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, BLACK);
+      tft.setCursor(battDisplayX, battDisplayY); //adjust to your liking
+      tft.setTextSize(3);
+      tft.print(displayBattLevel);
+    }
+
+    //display tilt angle
+    if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+      tempAngle = currentAngle;
+      xSemaphoreGive(angleSemaphore);
+    }
+    if(tempAngle != displayAngle){//refresh only when angle changes
+      displayAngle = tempAngle;
+      tft.fillRect(angleDisplayX, angleDiplayY, FRAME_W, FRAME_H, BLACK);
+      tft.setCursor(angleDisplayX, angleDiplayY); //adjust to your liking
+      tft.setTextSize(3);
+      tft.print(displayAngle);
+    }
+
+    //display Rider Mode
+    
+
+    //display speed?
+
+  
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+}
+
 
 void setup() {
   SWSerial.begin(9600);
