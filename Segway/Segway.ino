@@ -45,6 +45,7 @@ SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 
 SemaphoreHandle_t batterySemaphore;
 SemaphoreHandle_t angleSemaphore;
+SemaphoreHandle_t runtimeSemaphore;
 
 
 void GetAngleTask(void* pvParameters) {
@@ -343,20 +344,43 @@ void batteryLevelTask() {
   }
 }
 
+
+
+int runtime = 0;
+void runtimeTask(){
+  while(1){
+    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE){
+    runtime++;
+    xSemaphoreGive(runtimeSemaphore);
+    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
+
 #define FRAME_W 150
 #define FRAME_H 50
 #define angleDisplayX  235
 #define angleDiplayY  40
 #define battDisplayX 235
 #define battDisplayY 60
+#define riderDisplayX 235
+#define riderDisplayY 80
+#define runtimeDisplayX 235
+#define runtimeDisplayY 100
+
 
 
 void updateScreenTask(void* pvParameters) {
   bool touchInProgress = false;
   int displayAngle = 0;
   int displayBattLevel = 0;
+  int displayRuntime = 0;
+  bool displayRiderMode = false;
   int tempAngle = 0;
   int tempBattLevel = 0;
+  int tempRuntime = 0;
+  bool tempRiderMode = false;
+  
   while (1) {
     
     //display battery %
@@ -386,7 +410,29 @@ void updateScreenTask(void* pvParameters) {
     }
 
     //display Rider Mode
-    
+    tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
+    if(tempRiderMode != displayRiderMode){//refresh only when angle changes
+      displayRiderMode = tempRiderMode;
+      tft.fillRect(riderDisplayX, riderDisplayY, FRAME_W, FRAME_H, BLACK);
+      tft.setCursor(riderDisplayX, riderDisplayY); //adjust to your liking
+      tft.setTextSize(3);
+      tft.print(displayRiderMode);
+    }
+
+    //display runtime
+    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+      tempRuntime = runtime;
+      xSemaphoreGive(runtimeSemaphore);
+    }
+    if(tempRuntime != displayRuntime){//refresh only when time changes
+      displayRuntime = tempRuntime;
+      tft.fillRect(runtimeDisplayX, runtimeDisplayY, FRAME_W, FRAME_H, BLACK);
+      tft.setCursor(runtimeDisplayX, runtimeDisplayY); //adjust to your liking
+      tft.setTextSize(3);
+      tft.print(displayRuntime);
+    }
+
+
 
     //display speed?
 
@@ -408,6 +454,8 @@ void setup() {
   xTaskCreate(SteeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
   xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
+  xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
   vTaskStartScheduler();
 }
 
