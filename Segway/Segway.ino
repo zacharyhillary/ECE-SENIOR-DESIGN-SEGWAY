@@ -1,12 +1,12 @@
-#include "Arduino_FreeRTOS.h"
+// #include "Arduino_FreeRTOS.h"
 #include "mpu_6050_drivers.h"
 #include <SoftwareSerial.h>
 #include <SabertoothSimplified.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_FT6206.h>
 #include <Adafruit_ILI9341.h>
-#include "semphr.h"
-#include <task.h>
+// #include "semphr.h"
+// #include <task.h>
 
 //screen pins
 #define TFT_CLK 52
@@ -40,24 +40,26 @@ double displayAngle;
 #define TURN_SIGNAL_INPUT_1 28
 #define TURN_SIGNAL_INPUT_2 29
 
+typedef void (*Function)(void);
+
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 
-SemaphoreHandle_t batterySemaphore;
-SemaphoreHandle_t angleSemaphore;
-SemaphoreHandle_t runtimeSemaphore;
+// SemaphoreHandle_t batterySemaphore;
+// SemaphoreHandle_t angleSemaphore;
+// SemaphoreHandle_t runtimeSemaphore;
 
 
-void GetAngleTask(void* pvParameters) {
-  int motorPower;
-  while (1) {
-    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
-    currentAngle = -1 * (Get_Angle() + 7);  // set global variable to the current angle of the segway
-    xSemaphoreGive(angleSemaphore);
-    }
-    vTaskDelay(pdMS_TO_TICKS(16));
-  }
-}
+// void getAngleTask(void* pvParameters) {
+//   int motorPower;
+//   while (1) {
+//     if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
+//     currentAngle = -1 * (Get_Angle() + 7);  // set global variable to the current angle of the segway
+//     xSemaphoreGive(angleSemaphore);
+//     }
+//     vTaskDelay(pdMS_TO_TICKS(16));
+//   }
+// }
 
 
 
@@ -67,300 +69,318 @@ bool riderMode = false;
 double previousError = 0;
 double integral = 0;
 
-double ComputePID(double kp, double ki, double kd, double setpoint, double processVariable) {
-  double error = setpoint - processVariable;
-  integral += ki * error;
-  double derivative = error - previousError;
-  double PIDoutput = kp * error + integral + kd * derivative;
-  previousError = error;
-  return PIDoutput;
-}
+// double ComputePID(double kp, double ki, double kd, double setpoint, double processVariable) {
+//   double error = setpoint - processVariable;
+//   integral += ki * error;
+//   double derivative = error - previousError;
+//   double PIDoutput = kp * error + integral + kd * derivative;
+//   previousError = error;
+//   return PIDoutput;
+// }
 
-double output;
-void MainControlTask(void* pvParameters) {
+// double output;
+// void mainControlTask(void* pvParameters) {
 
-  bool previousRiderMode = !riderMode;  // SET IT so it goes into if statement on first loop
-  vTaskDelay(pdMS_TO_TICKS(500));       // LET IMU STABILISE
-  long timerMillis;
+//   bool previousRiderMode = !riderMode;  // SET IT so it goes into if statement on first loop
+//   vTaskDelay(pdMS_TO_TICKS(500));       // LET IMU STABILISE
+//   long timerMillis;
 
-  const double slowKp = 4;
-  const double slowKd = 0;
+//   const double slowKp = 4;
+//   const double slowKd = 0;
 
-  const double riderKp = 9;
-  const double riderKi = 0;
-  const double riderKd = 12.5;
-  const double riderSetpoint = 0;
+//   const double riderKp = 9;
+//   const double riderKi = 0;
+//   const double riderKd = 12.5;
+//   const double riderSetpoint = 0;
 
-  const double noRiderKp = 9;
-  const double noRiderKi = 0.15;
-  const double noRiderKd = 15;
-  const double noRiderSetpoint = 7.4;
+//   const double noRiderKp = 9;
+//   const double noRiderKi = 0.15;
+//   const double noRiderKd = 15;
+//   const double noRiderSetpoint = 7.4;
 
-  const double LEFT_MOTOR_SCALE = 1.10;  // 10 percent increase
+//   const double LEFT_MOTOR_SCALE = 1.10;  // 10 percent increase
 
-  double kp;
-  double ki;
-  double kd;
-  bool resetConfig;
-  double setpoint;
+//   double kp;
+//   double ki;
+//   double kd;
+//   bool resetConfig;
+//   double setpoint;
 
-  // long previousMillis = millis();
-  // long currentMillis = millis();
+//   // long previousMillis = millis();
+//   // long currentMillis = millis();
 
-  while (1) {
-    if (previousRiderMode != riderMode) {  //gets activated when you switch rider mode AND FIRST TIME BOOT UP
-      previousRiderMode = riderMode;
-      integral = 0;
-      resetConfig = true;
-      timerMillis = millis();
-      kp = slowKp;
-      kd = slowKd;
-      ki = 0;
-      if (riderMode) setpoint = riderSetpoint;  //if a rider is present
-      else setpoint = noRiderSetpoint;          //if rider is not present
-    }
-
-
-    if (millis() - timerMillis >= 1000 && resetConfig) {  //put kp ki kd back to normal
-      if (riderMode) {                                    //if a rider is present
-        kp = riderKp;
-        ki = riderKi;
-        kd = riderKd;
-        setpoint = riderSetpoint;
-      } else {  //if rider is not present
-        kp = noRiderKp;
-        ki = noRiderKi;
-        kd = noRiderKd;
-        setpoint = noRiderSetpoint;
-      }
-      resetConfig = false;
-    }
-
-    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
-    {
-    output = ComputePID(kp, ki, kd, setpoint, currentAngle);
-    xSemaphoreGive(angleSemaphore);
-    }
-
-    if (output > 127) {  //bound the output
-      output = 127;
-    }
-    if (output < -127) {  //bound the output
-      output = -127;
-    }
-
-    if (currentAngle > 45 || currentAngle < -45) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
-      output = 0;
-      ST.motor(1, output);
-      ST.motor(2, output);
-      vTaskEndScheduler();
-    }
+//   while (1) {
+//     if (previousRiderMode != riderMode) {  //gets activated when you switch rider mode AND FIRST TIME BOOT UP
+//       previousRiderMode = riderMode;
+//       integral = 0;
+//       resetConfig = true;
+//       timerMillis = millis();
+//       kp = slowKp;
+//       kd = slowKd;
+//       ki = 0;
+//       if (riderMode) setpoint = riderSetpoint;  //if a rider is present
+//       else setpoint = noRiderSetpoint;          //if rider is not present
+//     }
 
 
-    int leftMotorOutput;
-    int rightMotorOutput;
+//     if (millis() - timerMillis >= 1000 && resetConfig) {  //put kp ki kd back to normal
+//       if (riderMode) {                                    //if a rider is present
+//         kp = riderKp;
+//         ki = riderKi;
+//         kd = riderKd;
+//         setpoint = riderSetpoint;
+//       } else {  //if rider is not present
+//         kp = noRiderKp;
+//         ki = noRiderKi;
+//         kd = noRiderKd;
+//         setpoint = noRiderSetpoint;
+//       }
+//       resetConfig = false;
+//     }
 
-    if (steering >= 1) {  //right turn
-      rightMotorOutput = output - steering;
-      leftMotorOutput = output + steering;
-    } else if (steering <= -1) {  //left turn
-      leftMotorOutput = output + steering;
-      rightMotorOutput = output - steering;
-    } else {  //no turn
-      leftMotorOutput = output;
-      rightMotorOutput = output;
-    }
+//     if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle
+//     {
+//     output = ComputePID(kp, ki, kd, setpoint, currentAngle);
+//     xSemaphoreGive(angleSemaphore);
+//     }
 
-    // if (leftMotorOutput > 0 && leftMotorOutput <= 6) leftMotorOutput = 6;  //motor deadzone
-    // else if (leftMotorOutput <= 0 && leftMotorOutput >= -6) leftMotorOutput = -6;
-    // if (rightMotorOutput > 0 && rightMotorOutput <= 5) rightMotorOutput = 5;
-    // else if (rightMotorOutput <= 0 && rightMotorOutput >= -5) rightMotorOutput = -5;
+//     if (output > 127) {  //bound the output
+//       output = 127;
+//     }
+//     if (output < -127) {  //bound the output
+//       output = -127;
+//     }
 
-    ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
-    ST.motor(2, rightMotorOutput);                    // right motor
-    
-    // currentMillis = millis();
-    // Serial.print("Difference:  |  ");
-    // Serial.println(currentMillis - previousMillis);
-    // previousMillis = currentMillis;
-
-    vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
-  }
-}
-
-
-enum SteeringDirection {
-  STEERING_LEFT,
-  STEERING_RIGHT,
-  NONE
-};
-
-void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
-  int index = 0;
-  while(index < arrayLength - 1) {
-    arrayOfInputs[index] = arrayOfInputs[index+1];
-    index++;
-  }
-  arrayOfInputs[index] = nextInput;
-}
-
-void SteeringTask(void* pvParameters) {
-  int leftSteeringPin = A2;
-  int rightSteeringPin = A3;
-  int targetSteering = 0;
-  int currentSteering = 0;
-  int lastThreeInputs[] = { 0, 0, 0 };
-  pinMode(leftSteeringPin, INPUT);
-  pinMode(rightSteeringPin, INPUT);
-  while (1) {
-    double rightSteeringRaw = analogRead(rightSteeringPin);
-    double leftSteeringRaw = analogRead(leftSteeringPin);
-    if (rightSteeringRaw < 700 && leftSteeringRaw > 700) {
-      targetSteering = 100;
-      pushToArray(lastThreeInputs, 100, 3);
-    } else if (rightSteeringRaw > 700 && leftSteeringRaw < 700) {
-      targetSteering = -100;
-      pushToArray(lastThreeInputs, -100, 3);
-    } else {
-      targetSteering = 0;
-      pushToArray(lastThreeInputs, 0, 3);
-    }
-
-    if (lastThreeInputs[0] == 0 && lastThreeInputs[1] == 0 && lastThreeInputs[2] == 0) {
-      currentSteering = 0;
-    } else if (currentSteering < targetSteering) {
-      currentSteering = min(100, currentSteering + 15);
-    } else if (currentSteering > targetSteering) {
-      currentSteering = max(-100, currentSteering - 15);
-    }
-
-    // double rightSteering = -1 * (((double)analogRead(rightSteeringPin) - 40.0) * (1.0 / 9.0) - 100);
-    // double leftSteering = -1 * (((double)analogRead(leftSteeringPin) - 14.0) * (1.0 / 9.0) - 100);
-    // steering = rightSteering - leftSteering;                  // ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
+//     if (currentAngle > 45 || currentAngle < -45) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
+//       output = 0;
+//       ST.motor(1, output);
+//       ST.motor(2, output);
+//       vTaskEndScheduler();
+//     }
 
 
+//     int leftMotorOutput;
+//     int rightMotorOutput;
 
-    steering = (0.3 - output * 0.0022) * currentSteering;  // 0.3*steering at 0 output and and .1*steering at 90
-    //if ((steering <= 20) && (steering >= -20)) steering = 0;  // steering deadzone;
-    vTaskDelay(pdMS_TO_TICKS(75));
-  }
-}
+//     if (steering >= 1) {  //right turn
+//       rightMotorOutput = output - steering;
+//       leftMotorOutput = output + steering;
+//     } else if (steering <= -1) {  //left turn
+//       leftMotorOutput = output + steering;
+//       rightMotorOutput = output - steering;
+//     } else {  //no turn
+//       leftMotorOutput = output;
+//       rightMotorOutput = output;
+//     }
 
-bool checkEachLessThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] >= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
+//     // if (leftMotorOutput > 0 && leftMotorOutput <= 6) leftMotorOutput = 6;  //motor deadzone
+//     // else if (leftMotorOutput <= 0 && leftMotorOutput >= -6) leftMotorOutput = -6;
+//     // if (rightMotorOutput > 0 && rightMotorOutput <= 5) rightMotorOutput = 5;
+//     // else if (rightMotorOutput <= 0 && rightMotorOutput >= -5) rightMotorOutput = -5;
 
-bool checkEachGreaterThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] <= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
+//     ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
+//     ST.motor(2, rightMotorOutput);                    // right motor
 
-void DistanceSensorTask(void* pvParameters) {
-  // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
-  const int trigEchoPin = 11;  //connects to the trigger pin on the distance sensor
-  int distance;
-  int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
-  while (1) {
-    float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
-    //send out an ultrasonic pulse that's 10ms long
-    pinMode(trigEchoPin, OUTPUT);
-    digitalWrite(trigEchoPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigEchoPin, LOW);
-    pinMode(trigEchoPin, INPUT);
-    echoTime = pulseInLong(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
+//     // currentMillis = millis();
+//     // Serial.print("Difference:  |  ");
+//     // Serial.println(currentMillis - previousMillis);
+//     // previousMillis = currentMillis;
 
-    distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
-    pushToArray(distanceArray, distance, 6);
+//     vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
+//   }
+// }
 
-    if (checkEachGreaterThan(distanceArray, 20, 6)) {
-      riderMode = false;
-    } else if (checkEachLessThan(distanceArray, 20, 6)) {
-      riderMode = true;
-    }
-    // Serial.print("Rider mode is: ");
-    // Serial.println(riderMode);
-    // Serial.print("Distance is: ");
-    // Serial.println(distance);
-    // digitalWrite(TURN_SIGNAL_OUTPUT_1, riderMode);
-    vTaskDelay(pdMS_TO_TICKS(250));
-  }
-}
 
-bool signalLevelOne = true;
-bool signalLevelTwo = true;
-void turnSignalTask(void* pvParameters) {
-  pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
-  pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
-  pinMode(TURN_SIGNAL_INPUT_1, INPUT_PULLUP);
-  pinMode(TURN_SIGNAL_INPUT_2, INPUT_PULLUP);
-  while (1) {
-    int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
-    int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
-    if (pin1 == LOW) {
-      digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
-      signalLevelOne = !signalLevelOne;
-    } else {
-      digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
-    }
-    if (pin2 == LOW) {
-      digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
-      signalLevelTwo = !signalLevelTwo;
-    } else {
-      digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
-    }
-    vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
-  }
-}
+// enum SteeringDirection {
+//   STEERING_LEFT,
+//   STEERING_RIGHT,
+//   NONE
+// };
 
-//battery level
-int percent_battery;
-void batteryLevelTask() {
-  pinMode(A2, INPUT);
-  analogReference(INTERNAL2V56);
-  while(1) {
-    if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish 
-      int raw_data_in = analogRead(A2);  // read the input pin
-      double voltage_input = 5.0 * raw_data_in / 1024.0;
-      double voltage_battery = voltage_input * 15.523;
-      percent_battery = voltage_battery * (121.0 / 26.0) - 21;
-      if (voltage_battery < 21) percent_battery = 0;
-    //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
-    }
-    vTaskDelay(pdMS_TO_TICKS(500));
-  }
-}
+// void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
+//   int index = 0;
+//   while(index < arrayLength - 1) {
+//     arrayOfInputs[index] = arrayOfInputs[index+1];
+//     index++;
+//   }
+//   arrayOfInputs[index] = nextInput;
+// }
+
+// void steeringTask(void* pvParameters) {
+//   int leftSteeringPin = A2;
+//   int rightSteeringPin = A3;
+//   int targetSteering = 0;
+//   int currentSteering = 0;
+//   int lastThreeInputs[] = { 0, 0, 0 };
+//   pinMode(leftSteeringPin, INPUT);
+//   pinMode(rightSteeringPin, INPUT);
+//   while (1) {
+//     double rightSteeringRaw = analogRead(rightSteeringPin);
+//     double leftSteeringRaw = analogRead(leftSteeringPin);
+//     if (rightSteeringRaw < 700 && leftSteeringRaw > 700) {
+//       targetSteering = 100;
+//       pushToArray(lastThreeInputs, 100, 3);
+//     } else if (rightSteeringRaw > 700 && leftSteeringRaw < 700) {
+//       targetSteering = -100;
+//       pushToArray(lastThreeInputs, -100, 3);
+//     } else {
+//       targetSteering = 0;
+//       pushToArray(lastThreeInputs, 0, 3);
+//     }
+
+//     if (lastThreeInputs[0] == 0 && lastThreeInputs[1] == 0 && lastThreeInputs[2] == 0) {
+//       currentSteering = 0;
+//     } else if (currentSteering < targetSteering) {
+//       currentSteering = min(100, currentSteering + 15);
+//     } else if (currentSteering > targetSteering) {
+//       currentSteering = max(-100, currentSteering - 15);
+//     }
+
+//     // double rightSteering = -1 * (((double)analogRead(rightSteeringPin) - 40.0) * (1.0 / 9.0) - 100);
+//     // double leftSteering = -1 * (((double)analogRead(leftSteeringPin) - 14.0) * (1.0 / 9.0) - 100);
+//     // steering = rightSteering - leftSteering;                  // ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
+
+
+
+//     steering = (0.3 - output * 0.0022) * currentSteering;  // 0.3*steering at 0 output and and .1*steering at 90
+//     //if ((steering <= 20) && (steering >= -20)) steering = 0;  // steering deadzone;
+//     vTaskDelay(pdMS_TO_TICKS(75));
+//   }
+// }
+
+// bool checkEachLessThan(int* array, int value, int arrayLength) {
+//     int index = 0;
+//     while (index < arrayLength) {
+//       if (array[index] >= value) {
+//         return false;
+//       }
+//       index++;
+//     }
+//     return true;
+// }
+
+// bool checkEachGreaterThan(int* array, int value, int arrayLength) {
+//     int index = 0;
+//     while (index < arrayLength) {
+//       if (array[index] <= value) {
+//         return false;
+//       }
+//       index++;
+//     }
+//     return true;
+// }
+
+// void distanceSensorTask(void* pvParameters) {
+//   // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
+//   const int trigEchoPin = 11;  //connects to the trigger pin on the distance sensor
+//   int distance;
+//   int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
+//   while (1) {
+//     float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
+//     //send out an ultrasonic pulse that's 10ms long
+//     pinMode(trigEchoPin, OUTPUT);
+//     digitalWrite(trigEchoPin, HIGH);
+//     delayMicroseconds(10);
+//     digitalWrite(trigEchoPin, LOW);
+//     pinMode(trigEchoPin, INPUT);
+//     echoTime = pulseInLong(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
+
+//     distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
+//     pushToArray(distanceArray, distance, 6);
+
+//     if (checkEachGreaterThan(distanceArray, 20, 6)) {
+//       riderMode = false;
+//     } else if (checkEachLessThan(distanceArray, 20, 6)) {
+//       riderMode = true;
+//     }
+//     // Serial.print("Rider mode is: ");
+//     // Serial.println(riderMode);
+//     // Serial.print("Distance is: ");
+//     // Serial.println(distance);
+//     // digitalWrite(TURN_SIGNAL_OUTPUT_1, riderMode);
+//     vTaskDelay(pdMS_TO_TICKS(250));
+//   }
+// }
+
+// bool signalLevelOne = true;
+// bool signalLevelTwo = true;
+// void turnSignalTask(void* pvParameters) {
+//   pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
+//   pinMode(TURN_SIGNAL_OUTPUT_2, OUTPUT);
+//   pinMode(TURN_SIGNAL_INPUT_1, INPUT_PULLUP);
+//   pinMode(TURN_SIGNAL_INPUT_2, INPUT_PULLUP);
+//   while (1) {
+//     int pin1 = digitalRead(TURN_SIGNAL_INPUT_1);
+//     int pin2 = digitalRead(TURN_SIGNAL_INPUT_2);
+//     if (pin1 == LOW) {
+//       digitalWrite(TURN_SIGNAL_OUTPUT_1, signalLevelOne);
+//       signalLevelOne = !signalLevelOne;
+//     } else {
+//       digitalWrite(TURN_SIGNAL_OUTPUT_1, HIGH);
+//     }
+//     if (pin2 == LOW) {
+//       digitalWrite(TURN_SIGNAL_OUTPUT_2, signalLevelTwo);
+//       signalLevelTwo = !signalLevelTwo;
+//     } else {
+//       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
+//     }
+//     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
+//   }
+// }
+
+// //battery level
+// int percent_battery;
+// void batteryLevelTask() {
+//   pinMode(A2, INPUT);
+//   analogReference(INTERNAL2V56);
+//   while(1) {
+//     if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish
+//       int raw_data_in = analogRead(A2);  // read the input pin
+//       double voltage_input = 5.0 * raw_data_in / 1024.0;
+//       double voltage_battery = voltage_input * 15.523;
+//       percent_battery = voltage_battery * (121.0 / 26.0) - 21;
+//       if (voltage_battery < 21) percent_battery = 0;
+//     //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
+//     }
+//     vTaskDelay(pdMS_TO_TICKS(500));
+//   }
+// }
 
 
 
 int runtime = 0;
-void runtimeTask(){
-  while(1){
-    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE){
+long startRuntime = micros();
+struct {
+public:
+  void execute(void) {
     runtime++;
-    xSemaphoreGive(runtimeSemaphore);
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    Serial.print("Runtime: ");
+    Serial.print(runtime * 250);
+    Serial.println(" millis");
+    Serial.print("Actual runtime: ");
+    Serial.print((micros() - startRuntime) / 1000.0);
+    Serial.println(" millis");
+    // if (xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE) {
+    //   runtime++;
+    //   xSemaphoreGive(runtimeSemaphore);
+    // }
   }
-}
+} RuntimeTask;
+
+// void runtimeTask() {
+//   while(1) {
+//     if (xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE) {
+//       runtime++;
+//       xSemaphoreGive(runtimeSemaphore);
+//     }
+//     vTaskDelay(pdMS_TO_TICKS(1000));
+//   }
+// }
 
 #define FRAME_W 150
 #define FRAME_H 50
-#define angleDisplayX  235
-#define angleDiplayY  40
+#define angleDisplayX 235
+#define angleDiplayY 40
 #define battDisplayX 235
 #define battDisplayY 60
 #define riderDisplayX 235
@@ -368,9 +388,8 @@ void runtimeTask(){
 #define runtimeDisplayX 235
 #define runtimeDisplayY 100
 
-
-
-void updateScreenTask(void* pvParameters) {
+struct {
+private:
   bool touchInProgress = false;
   int displayAngle = 0;
   int displayBattLevel = 0;
@@ -380,67 +399,167 @@ void updateScreenTask(void* pvParameters) {
   int tempBattLevel = 0;
   int tempRuntime = 0;
   bool tempRiderMode = false;
-  
-  while (1) {
-    
+public:
+  void execute(void) {
+    Serial.println("Execution begun");
     //display battery %
-    if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
-      tempBattLevel = percent_battery;
-      xSemaphoreGive(batterySemaphore);
-    }
-    if(tempBattLevel != displayBattLevel){//refresh only when battery level changes
+    // if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
+    //   tempBattLevel = percent_battery;
+    //   xSemaphoreGive(batterySemaphore);
+    // }
+    if (tempBattLevel != displayBattLevel) {  //refresh only when battery level changes
       displayBattLevel = tempBattLevel;
       tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, BLACK);
-      tft.setCursor(battDisplayX, battDisplayY); //adjust to your liking
+      tft.setCursor(battDisplayX, battDisplayY);  //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayBattLevel);
     }
 
     //display tilt angle
-    if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
-      tempAngle = currentAngle;
-      xSemaphoreGive(angleSemaphore);
-    }
-    if(tempAngle != displayAngle){//refresh only when angle changes
+    // if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+    //   tempAngle = currentAngle;
+    //   xSemaphoreGive(angleSemaphore);
+    // }
+    if (tempAngle != displayAngle) {  //refresh only when angle changes
       displayAngle = tempAngle;
       tft.fillRect(angleDisplayX, angleDiplayY, FRAME_W, FRAME_H, BLACK);
-      tft.setCursor(angleDisplayX, angleDiplayY); //adjust to your liking
+      tft.setCursor(angleDisplayX, angleDiplayY);  //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayAngle);
     }
 
     //display Rider Mode
-    tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
-    if(tempRiderMode != displayRiderMode){//refresh only when angle changes
+    tempRiderMode = riderMode;                // might have to do the above semaphore on this as well, but might be ok
+    if (tempRiderMode != displayRiderMode) {  //refresh only when angle changes
       displayRiderMode = tempRiderMode;
       tft.fillRect(riderDisplayX, riderDisplayY, FRAME_W, FRAME_H, BLACK);
-      tft.setCursor(riderDisplayX, riderDisplayY); //adjust to your liking
+      tft.setCursor(riderDisplayX, riderDisplayY);  //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayRiderMode);
     }
 
     //display runtime
-    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
-      tempRuntime = runtime;
-      xSemaphoreGive(runtimeSemaphore);
-    }
-    if(tempRuntime != displayRuntime){//refresh only when time changes
+    // if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+    //   tempRuntime = runtime;
+    //   xSemaphoreGive(runtimeSemaphore);
+    // }
+    if (tempRuntime != displayRuntime) {  //refresh only when time changes
       displayRuntime = tempRuntime;
       tft.fillRect(runtimeDisplayX, runtimeDisplayY, FRAME_W, FRAME_H, BLACK);
-      tft.setCursor(runtimeDisplayX, runtimeDisplayY); //adjust to your liking
+      tft.setCursor(runtimeDisplayX, runtimeDisplayY);  //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayRuntime);
     }
+    Serial.println("Execution finished");
+  }
+} UpdateScreenTask;
 
+class ExecuteStack {
+public:
+  int8_t priority;
+  int currSize;
+  ExecuteStack(int8_t p) {
+    priority = p;
+    currSize = 0;
+  }
+  void push(Function func) {
+    if (currSize < MAX_QUEUE) {
+      queue[currSize] = func;
+      currSize++;
+      Serial.println("Push good");
+    } else {
+      Serial.println("Push bad");
+    }
+  }
+  void execute() {
+    if (currSize > 0) {
+      Serial.print("Current size ");
+      Serial.print(currSize);
+      Serial.print(", in stack priority ");
+      Serial.println(priority);
+      queue[0]();
+      for (int i = 0; i < currSize - 1; i++) {
+        queue[i + 1] = queue[i];
+      }
+      currSize--;
+    }
+  }
+  void printSize() {
+    Serial.print("Size of stack pri ");
+    Serial.print(priority);
+    Serial.print(" is ");
+    Serial.println(currSize);
+  }
+private:
+  static const int8_t MAX_QUEUE = 15;
+  Function queue[MAX_QUEUE];
+};
 
+ExecuteStack stackPriOne = ExecuteStack(1);
+ExecuteStack stackPriTwo = ExecuteStack(2);
+ExecuteStack stackPriThree = ExecuteStack(3);
 
-    //display speed?
+class PeriodicExecutable {
+public:
+  int8_t priority;
+  PeriodicExecutable(Function execFunc, long d, int8_t p) {
+    executableFunction = execFunc;
+    delay = d;
+    priority = p;
+    last = micros();
+  }
+  PeriodicExecutable() {
+    executableFunction = nullptr;
+    delay = 1000;
+    priority = 4;
+    last = micros();
+  }
+  void queueExecution() {
+    long now = micros();
+    // Serial.print("Micros - last = ");
+    // Serial.println(now - last);
+    if (now - last > delay) {
+      // Serial.print("Execution queued with priority ");
+      // Serial.println(priority);
+      last = now;
+      switch (priority) {
+        case 1:
+          {
+            stackPriOne.push(executableFunction);
+            break;
+          }
+        case 2:
+          {
+            stackPriTwo.push(executableFunction);
+            break;
+          }
+        case 3:
+          {
+            stackPriThree.push(executableFunction);
+            break;
+          }
+      }
+    }
+  }
+private:
+  long delay;
+  long last;
+  Function executableFunction;
+};
 
-  
-    vTaskDelay(pdMS_TO_TICKS(50));
+PeriodicExecutable executables[10];
+int executables_size = 0;
+
+void addPeriodicExecutable(Function func, long delay, int priority) {
+  if (executables_size < 10) {
+    executables[executables_size] = PeriodicExecutable(func, delay, priority);
+    executables_size++;
+    // Serial.print("Executable index is now: ");
+    // Serial.println(executable_index);
+  } else {
+    Serial.println("Too many executables");
   }
 }
-
 
 void setup() {
   SWSerial.begin(9600);
@@ -452,20 +571,51 @@ void setup() {
   tft.setRotation(3);
   tft.fillScreen(ILI9341_BLACK);
 
-  mpu_setup();
-  Serial1.begin(9600);
-  Serial1.println("starting rtos....");
-  xTaskCreate(GetAngleTask, "gat", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
-  xTaskCreate(MainControlTask, "mct", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
-  xTaskCreate(SteeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
-  xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
-  xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
-  xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
-  vTaskStartScheduler();
+  // mpu_setup();
+  Serial.begin(9600);
+  Serial.println("starting rtos....");
+
+  // addPeriodicExecutable(getAngleTask, 16 * 1000, 1);
+  // addPeriodicExecutable(mainControlTask, 10 * 1000, 1);
+  // addPeriodicExecutable(steeringTask, 25 * 1000, 1);
+  // addPeriodicExecutable(turnSignalTask, 250 * 1000, 2);
+  // addPeriodicExecutable(distanceSensorTask, 250 * 1000, 3);
+  // addPeriodicExecutable(runtimeTask, 250 * 1000, 2);
+  auto _updateScreenTask = [UpdateScreenTask]() {
+    UpdateScreenTask.execute();
+  };
+  addPeriodicExecutable(_updateScreenTask, 250000, 2);
+
+  auto _runtimeTask = [RuntimeTask]() {
+    RuntimeTask.execute();
+  };
+  addPeriodicExecutable(_runtimeTask, 250000, 2);
+
+  // xTaskCreate(getAngleTask, "gat", configMINIMAL_STACK_SIZE, NULL, 1, NULL);             //create task
+  // xTaskCreate(mainControlTask, "mct", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
+  // xTaskCreate(steeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
+  // xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
+  // xTaskCreate(distanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
+  // xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+  // xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+  // vTaskStartScheduler();
 }
 
-
+int startingIndex = 0;
 void loop() {
   //nothing in here bc free rtos
+  for (int i = startingIndex; i < startingIndex + executables_size; i++) {
+    executables[i % executables_size].queueExecution();
+  }
+  startingIndex = (startingIndex+1) % executables_size;
+  // stackPriOne.printSize();
+  // stackPriTwo.printSize();
+  // stackPriThree.printSize();
+  if (stackPriOne.currSize > 0) {
+    stackPriOne.execute();
+  } else if (stackPriTwo.currSize > 0) {
+    stackPriTwo.execute();
+  } else if (stackPriThree.currSize > 0) {
+    stackPriThree.execute();
+  }
 }
