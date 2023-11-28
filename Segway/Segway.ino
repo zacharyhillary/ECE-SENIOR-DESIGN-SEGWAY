@@ -6,6 +6,7 @@
 #include <Adafruit_FT6206.h>
 #include <Adafruit_ILI9341.h>
 #include "semphr.h"
+#include "splash_screen.h"
 #include <task.h>
 
 //screen pins
@@ -25,6 +26,8 @@
 #define MAGENTA 0xF81F
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
+
+
 
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
@@ -454,6 +457,13 @@ void updateScreenTask(void* pvParameters) {
   }
 }
 
+const int screenWidth = 320;
+const int screenHeight = 240;
+void splashScreenDisplay(){
+  tft.drawBitmap(0, 0, cougarBMP, screenHeight, screenWidth, 0xFFFF, 0xF800);
+  //Serial.println("Display finished");
+}
+
 
 void setup() {
   SWSerial.begin(9600);
@@ -461,9 +471,11 @@ void setup() {
   ST.motor(2, 0);
 
   //screen init
-  tft.begin();
-  tft.setRotation(3);
-  tft.fillScreen(ILI9341_BLACK);
+  //tft.begin();
+  //splashScreenDisplay();
+  //delay(5000);
+  //tft.setRotation(3);
+  //tft.fillScreen(ILI9341_BLACK);
 
   mpu_setup();
   Serial1.begin(9600);
@@ -472,9 +484,9 @@ void setup() {
   xTaskCreate(MainControlTask, "mct", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
   xTaskCreate(SteeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
-  //xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
+  xTaskCreate(RiderModeTask, "rmt", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+  //xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
   vTaskStartScheduler();
 }
 
