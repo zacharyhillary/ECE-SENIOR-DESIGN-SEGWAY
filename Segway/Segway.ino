@@ -46,6 +46,8 @@ SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 SemaphoreHandle_t batterySemaphore;
 SemaphoreHandle_t angleSemaphore;
 SemaphoreHandle_t runtimeSemaphore;
+SemaphoreHandle_t riderModeSemaphore;
+
 
 
 void GetAngleTask(void* pvParameters) {
@@ -268,29 +270,36 @@ bool checkEachGreaterThan(int* array, int value, int arrayLength) {
     return true;
 }
 
-void DistanceSensorTask(void* pvParameters) {
+void RiderModeTask(void* pvParameters) {
   // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
-  const int trigEchoPin = 11;  //connects to the trigger pin on the distance sensor
-  int distance;
-  int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
+  
+  const int RIDER_MODE_SWITCH_PIN = 22;  //connects to the trigger pin on the distance sensor
+  pinMode(RIDER_MODE_SWITCH_PIN, INPUT_PULLUP);
+  //int distance;
+  //int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
+  
   while (1) {
-    float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
+    //float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
     //send out an ultrasonic pulse that's 10ms long
-    pinMode(trigEchoPin, OUTPUT);
-    digitalWrite(trigEchoPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigEchoPin, LOW);
-    pinMode(trigEchoPin, INPUT);
-    echoTime = pulseInLong(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
-
-    distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
-    pushToArray(distanceArray, distance, 6);
-
-    if (checkEachGreaterThan(distanceArray, 20, 6)) {
-      riderMode = false;
-    } else if (checkEachLessThan(distanceArray, 20, 6)) {
-      riderMode = true;
+    if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(250)) == pdTRUE){
+        riderMode = digitalRead(RIDER_MODE_SWITCH_PIN); 
+        xSemaphoreGive(riderModeSemaphore);
     }
+    // pinMode(trigEchoPin, OUTPUT);
+    // digitalWrite(trigEchoPin, HIGH);
+    // delayMicroseconds(10);
+    // digitalWrite(trigEchoPin, LOW);
+    // pinMode(trigEchoPin, INPUT);
+    //echoTime = pulseInLong(trigEchoPin, HIGH);  //use the pulsein command to see how long it takes for the pulse to bounce back to the sensor
+
+    //distance = echoTime / 148.0;  //calculate the distance of the object that reflected the pulse (half the bounce time multiplied by the speed of sound)
+    //pushToArray(distanceArray, distance, 6);
+
+    // if (checkEachGreaterThan(distanceArray, 20, 6)) {
+    //   riderMode = false;
+    // } else if (checkEachLessThan(distanceArray, 20, 6)) {
+    //   riderMode = true;
+    // }
     // Serial.print("Rider mode is: ");
     // Serial.println(riderMode);
     // Serial.print("Distance is: ");
@@ -339,6 +348,7 @@ void batteryLevelTask() {
       percent_battery = voltage_battery * (121.0 / 26.0) - 21;
       if (voltage_battery < 21) percent_battery = 0;
     //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
+    xSemaphoreGive(batterySemaphore);
     }
     vTaskDelay(pdMS_TO_TICKS(500));
   }
@@ -410,7 +420,10 @@ void updateScreenTask(void* pvParameters) {
     }
 
     //display Rider Mode
-    tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
+    if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(50))==pdTRUE){
+      tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
+    }
+    
     if(tempRiderMode != displayRiderMode){//refresh only when angle changes
       displayRiderMode = tempRiderMode;
       tft.fillRect(riderDisplayX, riderDisplayY, FRAME_W, FRAME_H, BLACK);
@@ -459,7 +472,7 @@ void setup() {
   xTaskCreate(MainControlTask, "mct", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);  //create task
   xTaskCreate(SteeringTask, "pbt", configMINIMAL_STACK_SIZE * 2, NULL, 1, NULL);      //create task
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
-  xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
+  //xTaskCreate(DistanceSensorTask, "dst", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
   xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
   vTaskStartScheduler();
