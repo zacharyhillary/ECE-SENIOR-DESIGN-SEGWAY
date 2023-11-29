@@ -425,6 +425,7 @@ void updateScreenTask(void* pvParameters) {
     //display Rider Mode
     if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(50))==pdTRUE){
       tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
+      xSemaphoreGive(riderModeSemaphore);
     }
     
     if(tempRiderMode != displayRiderMode){//refresh only when angle changes
