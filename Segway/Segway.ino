@@ -56,11 +56,15 @@ SemaphoreHandle_t riderModeSemaphore;
 void GetAngleTask(void* pvParameters) {
   int motorPower;
   while (1) {
-    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
+    //if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
     currentAngle = -1 * (Get_Angle() + 7);  // set global variable to the current angle of the segway
-    xSemaphoreGive(angleSemaphore);
-    }
-    vTaskDelay(pdMS_TO_TICKS(16));
+    //Serial1.print("Current Angle: ");
+    //Serial1.println(currentAngle);
+
+
+    //xSemaphoreGive(angleSemaphore);
+    //}
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
@@ -96,12 +100,20 @@ void MainControlTask(void* pvParameters) {
   const double riderKd = 12.5;
   const double riderSetpoint = 0;
 
+  const double boundedRiderKp = 9;
+  const double boundedRiderKi = 0.15;
+  const double boundedRiderKd = 12.5;
+
   const double noRiderKp = 9;
   const double noRiderKi = 0.15;
   const double noRiderKd = 15;
   const double noRiderSetpoint = 7.4;
 
-  const double LEFT_MOTOR_SCALE = 1.10;  // 10 percent increase
+  const double boundedNoRiderKp = 9;
+  const double boundedNoRiderKi = 0.15;
+  const double boundedNoRiderKd = 12.5;
+
+  const double LEFT_MOTOR_SCALE = 1;  // 10 percent increase
 
   double kp;
   double ki;
@@ -141,11 +153,25 @@ void MainControlTask(void* pvParameters) {
       resetConfig = false;
     }
 
-    if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
-    {
-    output = ComputePID(kp, ki, kd, setpoint, currentAngle);
-    xSemaphoreGive(angleSemaphore);
+    if((currentAngle > 3 || currentAngle < -3) && riderMode){//increase Ki past certain angle thresholds to keep in bounded angles
+      kp = boundedRiderKp;
+      ki = boundedRiderKi;
+      kd = boundedRiderKd;
     }
+    else if (riderMode){
+      integral *=0.9;
+      kp = riderKp;
+      ki = riderKi;
+      kd = riderKd;
+    }
+
+   // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
+    //{
+    output = ComputePID(kp, ki, kd, setpoint, currentAngle);
+    
+
+    //xSemaphoreGive(angleSemaphore);
+    //}
 
     if (output > 127) {  //bound the output
       output = 127;
@@ -154,7 +180,7 @@ void MainControlTask(void* pvParameters) {
       output = -127;
     }
 
-    if (currentAngle > 45 || currentAngle < -45) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
+    if (currentAngle > 50 || currentAngle < -40) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
       output = 0;
       ST.motor(1, output);
       ST.motor(2, output);
@@ -276,7 +302,7 @@ bool checkEachGreaterThan(int* array, int value, int arrayLength) {
 void RiderModeTask(void* pvParameters) {
   // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
   
-  const int RIDER_MODE_SWITCH_PIN = 22;  //connects to the trigger pin on the distance sensor
+  const int RIDER_MODE_SWITCH_PIN = 8;  //connects to the trigger pin on the distance sensor
   pinMode(RIDER_MODE_SWITCH_PIN, INPUT_PULLUP);
   //int distance;
   //int distanceArray[6] = { 50, 50, 50, 50, 50, 50 };
@@ -284,10 +310,10 @@ void RiderModeTask(void* pvParameters) {
   while (1) {
     //float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
     //send out an ultrasonic pulse that's 10ms long
-    if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(250)) == pdTRUE){
+    //if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(250)) == pdTRUE){
         riderMode = digitalRead(RIDER_MODE_SWITCH_PIN); 
-        xSemaphoreGive(riderModeSemaphore);
-    }
+      //  xSemaphoreGive(riderModeSemaphore);
+    //}
     // pinMode(trigEchoPin, OUTPUT);
     // digitalWrite(trigEchoPin, HIGH);
     // delayMicroseconds(10);
@@ -334,6 +360,10 @@ void turnSignalTask(void* pvParameters) {
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
+    Serial1.print("Current Angle: ");
+    Serial1.println(currentAngle);
+    Serial1.print("Output: ");
+    Serial1.println(output);
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
   }
 }
@@ -344,15 +374,15 @@ void batteryLevelTask() {
   pinMode(A2, INPUT);
   analogReference(INTERNAL2V56);
   while(1) {
-    if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish 
+    //if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish 
       int raw_data_in = analogRead(A2);  // read the input pin
       double voltage_input = 5.0 * raw_data_in / 1024.0;
       double voltage_battery = voltage_input * 15.523;
       percent_battery = voltage_battery * (121.0 / 26.0) - 21;
       if (voltage_battery < 21) percent_battery = 0;
     //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
-    xSemaphoreGive(batterySemaphore);
-    }
+   // xSemaphoreGive(batterySemaphore);
+    //}
     vTaskDelay(pdMS_TO_TICKS(500));
   }
 }
@@ -362,10 +392,10 @@ void batteryLevelTask() {
 int runtime = 0;
 void runtimeTask(){
   while(1){
-    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE){
+    //if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE){
     runtime++;
-    xSemaphoreGive(runtimeSemaphore);
-    }
+    //xSemaphoreGive(runtimeSemaphore);
+    //}
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
@@ -397,36 +427,37 @@ void updateScreenTask(void* pvParameters) {
   while (1) {
     
     //display battery %
-    if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
+    //if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
       tempBattLevel = percent_battery;
-      xSemaphoreGive(batterySemaphore);
-    }
+      //xSemaphoreGive(batterySemaphore);
+    //}
     if(tempBattLevel != displayBattLevel){//refresh only when battery level changes
       displayBattLevel = tempBattLevel;
-      tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, BLACK);
+      tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, RED);
       tft.setCursor(battDisplayX, battDisplayY); //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayBattLevel);
     }
 
     //display tilt angle
-    if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+    //if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
       tempAngle = currentAngle;
-      xSemaphoreGive(angleSemaphore);
-    }
+      //xSemaphoreGive(angleSemaphore);
+    //}
     if(tempAngle != displayAngle){//refresh only when angle changes
       displayAngle = tempAngle;
       tft.fillRect(angleDisplayX, angleDiplayY, FRAME_W, FRAME_H, BLACK);
       tft.setCursor(angleDisplayX, angleDiplayY); //adjust to your liking
       tft.setTextSize(3);
       tft.print(displayAngle);
+      //Serial1.println(displayAngle);
     }
 
     //display Rider Mode
-    if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(50))==pdTRUE){
+    //if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(50))==pdTRUE){
       tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
-      xSemaphoreGive(riderModeSemaphore);
-    }
+      //xSemaphoreGive(riderModeSemaphore);
+    //}
     
     if(tempRiderMode != displayRiderMode){//refresh only when angle changes
       displayRiderMode = tempRiderMode;
@@ -437,10 +468,10 @@ void updateScreenTask(void* pvParameters) {
     }
 
     //display runtime
-    if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
+    //if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
       tempRuntime = runtime;
-      xSemaphoreGive(runtimeSemaphore);
-    }
+      //xSemaphoreGive(runtimeSemaphore);
+    //}
     if(tempRuntime != displayRuntime){//refresh only when time changes
       displayRuntime = tempRuntime;
       tft.fillRect(runtimeDisplayX, runtimeDisplayY, FRAME_W, FRAME_H, BLACK);
@@ -472,11 +503,11 @@ void setup() {
   ST.motor(2, 0);
 
   //screen init
-  //tft.begin();
-  //splashScreenDisplay();
+  tft.begin();
+  tft.setRotation(2);
+  splashScreenDisplay();
   //delay(5000);
-  //tft.setRotation(3);
-  //tft.fillScreen(ILI9341_BLACK);
+  tft.fillScreen(ILI9341_BLACK);
 
   mpu_setup();
   Serial1.begin(9600);
@@ -487,7 +518,7 @@ void setup() {
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
   xTaskCreate(RiderModeTask, "rmt", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-  //xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
   vTaskStartScheduler();
 }
 
