@@ -47,25 +47,61 @@ double displayAngle;
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 
+void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
+  int index = 0;
+  while(index < arrayLength - 1) {
+    arrayOfInputs[index] = arrayOfInputs[index+1];
+    index++;
+  }
+  arrayOfInputs[index] = nextInput;
+}
+
+void pushToDoubleArray(double* arrayOfInputs, double nextInput, int arrayLength) {
+  int index = 0;
+  while(index < arrayLength - 1) { // 0, 1, 2, 3 -> 4
+    arrayOfInputs[index] = arrayOfInputs[index+1];
+    index++;
+  }
+  arrayOfInputs[index] = nextInput; // 4 reassigned down here
+}
+
+bool checkEachLessThan(int* array, int value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] >= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
+bool checkEachGreaterThan(int* array, int value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] <= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
+void clearIntArray(int* array, int arrayLength) {
+  for(int i=0; i<arrayLength; i++) {
+    array[i] = 0;
+  }
+}
+
 void GetAngleTask(void* pvParameters) {
   int motorPower;
   while (1) {
     double temp = -1 * (Get_Angle() + 7);
     currentAngle = temp;  // set global variable to the current angle of the segway
-      //Serial1.print("Current Angle: ");
-      //Serial1.println(currentAngle);
-
-    // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE)
-      currentScreenAngle = temp;
-    //   xSemaphoreGive(angleSemaphore);
-    // }
+    currentScreenAngle = temp;
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
-
-
-
-
 
 bool riderMode = false;
 double previousError = 0;
@@ -102,18 +138,14 @@ void MainControlTask(void* pvParameters) {
   const double riderKd = 12.5;
   const double riderSetpoint = 0;
 
-  const double boundedRiderKp = 15;
-  const double boundedRiderKi = 0.15;
+  const double boundedRiderKp = 9;
+  const double boundedRiderKi = 0.1;
   const double boundedRiderKd = 12.5;
 
   const double noRiderKp = 9;
   const double noRiderKi = 0.15;
   const double noRiderKd = 15;
   const double noRiderSetpoint = 7.4;
-
-  // const double boundedNoRiderKp = 9;
-  // const double boundedNoRiderKi = 0.15;
-  // const double boundedNoRiderKd = 12.5;
 
   const double LEFT_MOTOR_SCALE = 1;  // 10 percent increase
 
@@ -124,6 +156,14 @@ void MainControlTask(void* pvParameters) {
   bool resetConfig;
   double targetSetpoint;
   double effectiveSetpoint = currentAngle;
+
+  int lastOutputs[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  long recordTimer = millis();
+  bool overrideOutput = false;
+  int overrideTarget = 60;
+  long overrideStart = millis();
+  long overrideDuration = 1000;
+  long overrideChange = 1.5;
 
   const double smoothAngleChange = 0.1;
   const double smoothKpChange = 0.25;
@@ -158,13 +198,7 @@ void MainControlTask(void* pvParameters) {
     handleSetValueSmoothing(&targetSetpoint, &effectiveSetpoint, smoothAngleChange);
     handleSetValueSmoothing(&targetKp, &effectiveKp, smoothKpChange);
 
-    // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
-    //{
     output = ComputePID(effectiveKp, ki, kd, effectiveSetpoint, currentAngle);
-    
-
-    //xSemaphoreGive(angleSemaphore);
-    //}
 
     if (output > 127) {  //bound the output
       output = 127;
@@ -201,23 +235,9 @@ void MainControlTask(void* pvParameters) {
 
     ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
     ST.motor(2, rightMotorOutput);                    // right motor
-    
-    // currentMillis = millis();
-    // Serial.print("Difference:  |  ");
-    // Serial.println(currentMillis - previousMillis);
-    // previousMillis = currentMillis;
 
     vTaskDelay(pdMS_TO_TICKS(10));  // 100 Hz
   }
-}
-
-void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
-  int index = 0;
-  while(index < arrayLength - 1) {
-    arrayOfInputs[index] = arrayOfInputs[index+1];
-    index++;
-  }
-  arrayOfInputs[index] = nextInput;
 }
 
 void SteeringTask(void* pvParameters) {
@@ -262,28 +282,6 @@ void SteeringTask(void* pvParameters) {
   }
 }
 
-bool checkEachLessThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] >= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
-
-bool checkEachGreaterThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] <= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
-
 void RiderModeTask(void* pvParameters) {
   // pinMode(TURN_SIGNAL_OUTPUT_1, OUTPUT);
   
@@ -295,10 +293,7 @@ void RiderModeTask(void* pvParameters) {
   while (1) {
     //float echoTime;  //variable to store the time it takes for a ping to bounce off an object         //variable to store the distance calculated from the echo time
     //send out an ultrasonic pulse that's 10ms long
-    //if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(250)) == pdTRUE){
-        riderMode = digitalRead(RIDER_MODE_SWITCH_PIN); 
-      //  xSemaphoreGive(riderModeSemaphore);
-    //}
+      riderMode = digitalRead(RIDER_MODE_SWITCH_PIN); 
     // pinMode(trigEchoPin, OUTPUT);
     // digitalWrite(trigEchoPin, HIGH);
     // delayMicroseconds(10);
@@ -314,10 +309,6 @@ void RiderModeTask(void* pvParameters) {
     // } else if (checkEachLessThan(distanceArray, 20, 6)) {
     //   riderMode = true;
     // }
-    // Serial.print("Rider mode is: ");
-    // Serial.println(riderMode);
-    // Serial.print("Distance is: ");
-    // Serial.println(distance);
     // digitalWrite(TURN_SIGNAL_OUTPUT_1, riderMode);
     vTaskDelay(pdMS_TO_TICKS(250));
   }
@@ -345,67 +336,86 @@ void turnSignalTask(void* pvParameters) {
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
-    Serial1.print("Current Angle: ");
-    Serial1.println(currentAngle);
-    Serial1.print("Output: ");
-    Serial1.println(output);
+    // Serial1.print("Current Angle: ");
+    // Serial1.println(currentAngle);
+    // Serial1.print("Output: ");
+    // Serial1.println(output);
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
   }
 }
 
-//battery level
-int percent_battery;
-void batteryLevelTask() {
-  pinMode(A2, INPUT);
-  analogReference(INTERNAL2V56);
-  while(1) {
-    //if ((xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE)){//wait 50 ms for other screen tasks to finish 
-      int raw_data_in = analogRead(A2);  // read the input pin
-      double voltage_input = 5.0 * raw_data_in / 1024.0;
-      double voltage_battery = voltage_input * 15.523;
-      percent_battery = voltage_battery * (121.0 / 26.0) - 21;
-      if (voltage_battery < 21) percent_battery = 0;
-    //batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
-   // xSemaphoreGive(batterySemaphore);
-    //}
-    vTaskDelay(pdMS_TO_TICKS(500));
-  }
+void batteryDebug(int raw, double voltage, double batt) {
+  Serial1.print("Raw: ");
+  Serial1.print(raw);
+  Serial1.print(" | Input: ");
+  Serial1.print(voltage);
+  Serial1.print("[v] | ");
+  Serial1.print(" Batt: ");
+  Serial1.print(batt);
+  Serial1.println("[v]");
 }
 
+double avgOfDoubleArray(double* arrayOfInputs, int arrayLength) {
+  double sum = 0.0;
+  for (int i=0; i<arrayLength; i++) {
+    sum = sum + arrayOfInputs[i];
+  }
+  return sum / arrayLength;
+}
 
+//battery level
+double percent_battery;
+void batteryLevelTask() {
+  pinMode(A1, INPUT);
+  double battVals[5] = { 50.0, 50.0, 50.0, 50.0, 50.0 };
+  const double BATTERY_DEAD = 21.0;
+  const double BATTERY_MAX = 26.0;
+  while(1) {
+      int raw_data_in = analogRead(A1);  // read the input pin
+      double voltage_input = 5.0 * raw_data_in / 1024.0;
+      double voltage_battery = voltage_input * 24.2 / 2.19;
+      double result = (voltage_battery - BATTERY_DEAD) * 100.0 / (BATTERY_MAX - BATTERY_DEAD);
+      if (voltage_battery < BATTERY_DEAD) {
+        result = 0.0;
+      } else if (voltage_battery > BATTERY_MAX) {
+        result = 100.0;
+      }
+      pushToDoubleArray(battVals, result, 5);
+      percent_battery = avgOfDoubleArray(battVals, 5);
+      // batteryDebug(raw_data_in, voltage_input, voltage_battery);  // print values to serial port
+      vTaskDelay(pdMS_TO_TICKS(500));
+  }
+}
 
 int runtime = 0;
 void runtimeTask(){
   while(1){
-    //if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(100)) == pdTRUE){
     runtime++;
-    //xSemaphoreGive(runtimeSemaphore);
-    //}
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
 #define FRAME_W 150
-#define FRAME_H 50
+#define FRAME_H 40
 #define angleDisplayX  200
 #define angleDisplayY  40
 #define battDisplayX 230
-#define battDisplayY 90
+#define battDisplayY 95
 #define riderDisplayX 230
-#define riderDisplayY 130
+#define riderDisplayY 140
 #define runtimeDisplayX 200
-#define runtimeDisplayY 180
+#define runtimeDisplayY 195
 
 
 
 void updateScreenTask(void* pvParameters) {
 
   double displayAngle = 0;
-  int displayBattLevel = 0;
+  double displayBattLevel = 0.0;
   int displayRuntime = 0;
   bool displayRiderMode = false;
   double tempAngle = 0;
-  int tempBattLevel = 0;
+  double tempBattLevel = 0.0;
   int tempRuntime = 0;
   bool tempRiderMode = false;
   bool initialPrint = false;
@@ -417,10 +427,14 @@ void updateScreenTask(void* pvParameters) {
     tempBattLevel = percent_battery;
     if(tempBattLevel != displayBattLevel || !initialPrint) { //refresh only when battery level changes
       displayBattLevel = tempBattLevel;
+      char printText[5];
       tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, BLACK);
+      vTaskDelay(pdMS_TO_TICKS(1));
       tft.setCursor(battDisplayX, battDisplayY); //adjust to your liking
-      tft.print(displayBattLevel);
+      dtostrf(displayBattLevel, 4, 2, printText);
+      tft.print(printText);
     }
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     //display tilt angle
     tempAngle = currentScreenAngle;
@@ -430,15 +444,18 @@ void updateScreenTask(void* pvParameters) {
       dtostrf(displayAngle, 4, 2, newPrint);
 
       tft.fillRect(angleDisplayX, angleDisplayY, FRAME_W, FRAME_H, BLACK);
+      vTaskDelay(pdMS_TO_TICKS(1));
       tft.setCursor(angleDisplayX, angleDisplayY); // adjust to your liking // y- 0 is top // x - 0 is left
       tft.print(newPrint);
     }
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     // //display Rider Mode
     tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
     if (tempRiderMode != displayRiderMode || !initialPrint) { //refresh only when angle changes
       displayRiderMode = tempRiderMode;
       tft.fillRect(riderDisplayX, riderDisplayY, FRAME_W, FRAME_H, BLACK);
+      vTaskDelay(pdMS_TO_TICKS(1));
       tft.setCursor(riderDisplayX, riderDisplayY); //adjust to your liking
       if (displayRiderMode) {
         tft.print("Yes");
@@ -446,20 +463,22 @@ void updateScreenTask(void* pvParameters) {
         tft.print("No");
       }
     }
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     //display runtime
     tempRuntime = runtime;
     if(tempRuntime != displayRuntime){ //refresh only when time changes
       displayRuntime = tempRuntime;
       tft.fillRect(runtimeDisplayX, runtimeDisplayY, FRAME_W, FRAME_H, BLACK);
+      vTaskDelay(pdMS_TO_TICKS(1));
       tft.setCursor(runtimeDisplayX, runtimeDisplayY); //adjust to your liking
       tft.print(displayRuntime);
     }
+    vTaskDelay(pdMS_TO_TICKS(500));
 
     //display speed?
 
     if (!initialPrint) initialPrint = true;
-    vTaskDelay(pdMS_TO_TICKS(2000));
   }
 }
 
@@ -467,7 +486,6 @@ const int screenWidth = 320;
 const int screenHeight = 240;
 void splashScreenDisplay(){
   tft.drawBitmap(0, 0, cougarBMP, screenHeight, screenWidth, 0xFFFF, 0xF800);
-  //Serial.println("Display finished");
 }
 
 
@@ -487,7 +505,7 @@ void setup() {
   tft.setCursor(angleDisplayX - 150, angleDisplayY);
   tft.print("Angle: ");
   tft.setCursor(battDisplayX - 180, battDisplayY);
-  tft.print("Batt [V]: ");
+  tft.print("Batt [%]: ");
   tft.setCursor(runtimeDisplayX - 150, runtimeDisplayY);
   tft.print("Runtime: ");
   tft.setCursor(riderDisplayX - 180, riderDisplayY);
@@ -502,7 +520,8 @@ void setup() {
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
   xTaskCreate(RiderModeTask, "rmt", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE * 20, NULL, 3, NULL);
+  xTaskCreate(batteryLevelTask, "blt", configMINIMAL_STACK_SIZE * 2, NULL, 3, NULL);
+  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE * 15, NULL, 3, NULL);
   vTaskStartScheduler();
 }
 
