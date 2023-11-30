@@ -33,6 +33,7 @@
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 double currentAngle;
+double currentScreenAngle = 0;
 double steering;
 
 double displayAngle;
@@ -46,24 +47,18 @@ double displayAngle;
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
 
-SemaphoreHandle_t batterySemaphore;
-SemaphoreHandle_t angleSemaphore;
-SemaphoreHandle_t runtimeSemaphore;
-SemaphoreHandle_t riderModeSemaphore;
-
-
-
 void GetAngleTask(void* pvParameters) {
   int motorPower;
   while (1) {
-    //if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE){
-    currentAngle = -1 * (Get_Angle() + 7);  // set global variable to the current angle of the segway
-    //Serial1.print("Current Angle: ");
-    //Serial1.println(currentAngle);
+    double temp = -1 * (Get_Angle() + 7);
+    currentAngle = temp;  // set global variable to the current angle of the segway
+      //Serial1.print("Current Angle: ");
+      //Serial1.println(currentAngle);
 
-
-    //xSemaphoreGive(angleSemaphore);
-    //}
+    // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(10)) == pdTRUE)
+      currentScreenAngle = temp;
+    //   xSemaphoreGive(angleSemaphore);
+    // }
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -85,12 +80,19 @@ double ComputePID(double kp, double ki, double kd, double setpoint, double proce
   return PIDoutput;
 }
 
+void handleSetValueSmoothing(double* targetValue, double* effectiveValue, double change) {
+  if (*effectiveValue > *targetValue) {
+    *effectiveValue = max(*effectiveValue - change, *targetValue);
+  } else if (*effectiveValue < *targetValue) {
+    *effectiveValue = min(*effectiveValue + change, *targetValue);
+  }
+}
+
 double output;
 void MainControlTask(void* pvParameters) {
 
   bool previousRiderMode = !riderMode;  // SET IT so it goes into if statement on first loop
   vTaskDelay(pdMS_TO_TICKS(500));       // LET IMU STABILISE
-  long timerMillis;
 
   const double slowKp = 4;
   const double slowKd = 0;
@@ -100,7 +102,7 @@ void MainControlTask(void* pvParameters) {
   const double riderKd = 12.5;
   const double riderSetpoint = 0;
 
-  const double boundedRiderKp = 9;
+  const double boundedRiderKp = 15;
   const double boundedRiderKi = 0.15;
   const double boundedRiderKd = 12.5;
 
@@ -109,65 +111,56 @@ void MainControlTask(void* pvParameters) {
   const double noRiderKd = 15;
   const double noRiderSetpoint = 7.4;
 
-  const double boundedNoRiderKp = 9;
-  const double boundedNoRiderKi = 0.15;
-  const double boundedNoRiderKd = 12.5;
+  // const double boundedNoRiderKp = 9;
+  // const double boundedNoRiderKi = 0.15;
+  // const double boundedNoRiderKd = 12.5;
 
   const double LEFT_MOTOR_SCALE = 1;  // 10 percent increase
 
-  double kp;
+  double effectiveKp = 0;
+  double targetKp;
   double ki;
   double kd;
   bool resetConfig;
-  double setpoint;
+  double targetSetpoint;
+  double effectiveSetpoint = currentAngle;
 
-  // long previousMillis = millis();
-  // long currentMillis = millis();
+  const double smoothAngleChange = 0.1;
+  const double smoothKpChange = 0.25;
 
   while (1) {
     if (previousRiderMode != riderMode) {  //gets activated when you switch rider mode AND FIRST TIME BOOT UP
       previousRiderMode = riderMode;
       integral = 0;
-      resetConfig = true;
-      timerMillis = millis();
-      kp = slowKp;
-      kd = slowKd;
-      ki = 0;
-      if (riderMode) setpoint = riderSetpoint;  //if a rider is present
-      else setpoint = noRiderSetpoint;          //if rider is not present
-    }
-
-
-    if (millis() - timerMillis >= 1000 && resetConfig) {  //put kp ki kd back to normal
-      if (riderMode) {                                    //if a rider is present
-        kp = riderKp;
-        ki = riderKi;
+      if (riderMode) {
+        targetSetpoint = riderSetpoint;
+        targetKp = riderKp;
         kd = riderKd;
-        setpoint = riderSetpoint;
-      } else {  //if rider is not present
-        kp = noRiderKp;
-        ki = noRiderKi;
+        ki = riderKi;
+      } else {
+        targetSetpoint = noRiderSetpoint;
+        targetKp = noRiderKp;
         kd = noRiderKd;
-        setpoint = noRiderSetpoint;
-      }
-      resetConfig = false;
+        ki = noRiderKi;
+      }  //if rider is not present
     }
-
-    if((currentAngle > 3 || currentAngle < -3) && riderMode){//increase Ki past certain angle thresholds to keep in bounded angles
-      kp = boundedRiderKp;
+    
+    if(riderMode && (currentAngle > 3 || currentAngle < -3)) {//increase Ki past certain angle thresholds to keep in bounded angles
+      targetKp = boundedRiderKp;
       ki = boundedRiderKi;
       kd = boundedRiderKd;
-    }
-    else if (riderMode){
-      integral *=0.9;
-      kp = riderKp;
+    } else if (riderMode) {
+      integral *= 0.98;
+      targetKp = riderKp;
       ki = riderKi;
       kd = riderKd;
     }
+    handleSetValueSmoothing(&targetSetpoint, &effectiveSetpoint, smoothAngleChange);
+    handleSetValueSmoothing(&targetKp, &effectiveKp, smoothKpChange);
 
-   // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
+    // if (xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(15)) == pdTRUE)//semaphore to protect currentAngle 
     //{
-    output = ComputePID(kp, ki, kd, setpoint, currentAngle);
+    output = ComputePID(effectiveKp, ki, kd, effectiveSetpoint, currentAngle);
     
 
     //xSemaphoreGive(angleSemaphore);
@@ -186,7 +179,6 @@ void MainControlTask(void* pvParameters) {
       ST.motor(2, output);
       vTaskEndScheduler();
     }
-
 
     int leftMotorOutput;
     int rightMotorOutput;
@@ -215,16 +207,9 @@ void MainControlTask(void* pvParameters) {
     // Serial.println(currentMillis - previousMillis);
     // previousMillis = currentMillis;
 
-    vTaskDelay(pdMS_TO_TICKS(10));  // ~60 Hz need to implement with different timing source if we want faster timing
+    vTaskDelay(pdMS_TO_TICKS(10));  // 100 Hz
   }
 }
-
-
-enum SteeringDirection {
-  STEERING_LEFT,
-  STEERING_RIGHT,
-  NONE
-};
 
 void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
   int index = 0;
@@ -402,90 +387,79 @@ void runtimeTask(){
 
 #define FRAME_W 150
 #define FRAME_H 50
-#define angleDisplayX  235
-#define angleDiplayY  40
-#define battDisplayX 235
-#define battDisplayY 60
-#define riderDisplayX 235
-#define riderDisplayY 80
-#define runtimeDisplayX 235
-#define runtimeDisplayY 100
+#define angleDisplayX  200
+#define angleDisplayY  40
+#define battDisplayX 230
+#define battDisplayY 90
+#define riderDisplayX 230
+#define riderDisplayY 130
+#define runtimeDisplayX 200
+#define runtimeDisplayY 180
 
 
 
 void updateScreenTask(void* pvParameters) {
-  bool touchInProgress = false;
-  int displayAngle = 0;
+
+  double displayAngle = 0;
   int displayBattLevel = 0;
   int displayRuntime = 0;
   bool displayRiderMode = false;
-  int tempAngle = 0;
+  double tempAngle = 0;
   int tempBattLevel = 0;
   int tempRuntime = 0;
   bool tempRiderMode = false;
-  
+  bool initialPrint = false;
+  // char *prevPrint;
+
   while (1) {
     
     //display battery %
-    //if(xSemaphoreTake(batterySemaphore, pdMS_TO_TICKS(50)) == pdTRUE){
-      tempBattLevel = percent_battery;
-      //xSemaphoreGive(batterySemaphore);
-    //}
-    if(tempBattLevel != displayBattLevel){//refresh only when battery level changes
+    tempBattLevel = percent_battery;
+    if(tempBattLevel != displayBattLevel || !initialPrint) { //refresh only when battery level changes
       displayBattLevel = tempBattLevel;
-      tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, RED);
+      tft.fillRect(battDisplayX, battDisplayY, FRAME_W, FRAME_H, BLACK);
       tft.setCursor(battDisplayX, battDisplayY); //adjust to your liking
-      tft.setTextSize(3);
       tft.print(displayBattLevel);
     }
 
     //display tilt angle
-    //if(xSemaphoreTake(angleSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
-      tempAngle = currentAngle;
-      //xSemaphoreGive(angleSemaphore);
-    //}
-    if(tempAngle != displayAngle){//refresh only when angle changes
+    tempAngle = currentScreenAngle;
+    if (tempAngle != displayAngle) { //refresh only when angle changes
+      char newPrint[4];
       displayAngle = tempAngle;
-      tft.fillRect(angleDisplayX, angleDiplayY, FRAME_W, FRAME_H, BLACK);
-      tft.setCursor(angleDisplayX, angleDiplayY); //adjust to your liking
-      tft.setTextSize(3);
-      tft.print(displayAngle);
-      //Serial1.println(displayAngle);
+      dtostrf(displayAngle, 4, 2, newPrint);
+
+      tft.fillRect(angleDisplayX, angleDisplayY, FRAME_W, FRAME_H, BLACK);
+      tft.setCursor(angleDisplayX, angleDisplayY); // adjust to your liking // y- 0 is top // x - 0 is left
+      tft.print(newPrint);
     }
 
-    //display Rider Mode
-    //if(xSemaphoreTake(riderModeSemaphore, pdMS_TO_TICKS(50))==pdTRUE){
-      tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
-      //xSemaphoreGive(riderModeSemaphore);
-    //}
-    
-    if(tempRiderMode != displayRiderMode){//refresh only when angle changes
+    // //display Rider Mode
+    tempRiderMode = riderMode;// might have to do the above semaphore on this as well, but might be ok
+    if (tempRiderMode != displayRiderMode || !initialPrint) { //refresh only when angle changes
       displayRiderMode = tempRiderMode;
       tft.fillRect(riderDisplayX, riderDisplayY, FRAME_W, FRAME_H, BLACK);
       tft.setCursor(riderDisplayX, riderDisplayY); //adjust to your liking
-      tft.setTextSize(3);
-      tft.print(displayRiderMode);
+      if (displayRiderMode) {
+        tft.print("Yes");
+      } else {
+        tft.print("No");
+      }
     }
 
     //display runtime
-    //if(xSemaphoreTake(runtimeSemaphore, pdMS_TO_TICKS(50)) == pdTRUE){//added semaphores to prevent corruption of currentAngle
-      tempRuntime = runtime;
-      //xSemaphoreGive(runtimeSemaphore);
-    //}
-    if(tempRuntime != displayRuntime){//refresh only when time changes
+    tempRuntime = runtime;
+    if(tempRuntime != displayRuntime){ //refresh only when time changes
       displayRuntime = tempRuntime;
       tft.fillRect(runtimeDisplayX, runtimeDisplayY, FRAME_W, FRAME_H, BLACK);
       tft.setCursor(runtimeDisplayX, runtimeDisplayY); //adjust to your liking
-      tft.setTextSize(3);
       tft.print(displayRuntime);
     }
 
-
-
     //display speed?
 
-  
-    vTaskDelay(pdMS_TO_TICKS(50));
+    if (!initialPrint) initialPrint = true;
+    vTaskDelay(pdMS_TO_TICKS(2000));
   }
 }
 
@@ -506,8 +480,18 @@ void setup() {
   tft.begin();
   tft.setRotation(2);
   splashScreenDisplay();
+  tft.setRotation(3);
   //delay(5000);
   tft.fillScreen(ILI9341_BLACK);
+  tft.setTextSize(3);
+  tft.setCursor(angleDisplayX - 150, angleDisplayY);
+  tft.print("Angle: ");
+  tft.setCursor(battDisplayX - 180, battDisplayY);
+  tft.print("Batt [V]: ");
+  tft.setCursor(runtimeDisplayX - 150, runtimeDisplayY);
+  tft.print("Runtime: ");
+  tft.setCursor(riderDisplayX - 180, riderDisplayY);
+  tft.print("Ridermode: ");
 
   mpu_setup();
   Serial1.begin(9600);
@@ -518,7 +502,7 @@ void setup() {
   xTaskCreate(turnSignalTask, "tst", configMINIMAL_STACK_SIZE * 2, NULL, 2, NULL);
   xTaskCreate(RiderModeTask, "rmt", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE, NULL, 2, NULL);
+  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE * 20, NULL, 3, NULL);
   vTaskStartScheduler();
 }
 
