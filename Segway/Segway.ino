@@ -138,8 +138,8 @@ void MainControlTask(void* pvParameters) {
   const double riderKd = 12.5;
   const double riderSetpoint = 0;
 
-  const double boundedRiderKp = 9;
-  const double boundedRiderKi = 0.1;
+  const double boundedRiderKp = 10;
+  const double boundedRiderKi = 0.12;
   const double boundedRiderKd = 12.5;
 
   const double noRiderKp = 9;
@@ -336,10 +336,10 @@ void turnSignalTask(void* pvParameters) {
     } else {
       digitalWrite(TURN_SIGNAL_OUTPUT_2, HIGH);
     }
-    // Serial1.print("Current Angle: ");
-    // Serial1.println(currentAngle);
-    // Serial1.print("Output: ");
-    // Serial1.println(output);
+    Serial1.print("Current Angle: ");
+    Serial1.println(currentAngle);
+    Serial1.print("Output: ");
+    Serial1.println(output);
     vTaskDelay(pdMS_TO_TICKS(250));  // Delay for 0.25 seconds
   }
 }
