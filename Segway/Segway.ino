@@ -521,7 +521,7 @@ void setup() {
   xTaskCreate(RiderModeTask, "rmt", configMINIMAL_STACK_SIZE, NULL, 3, NULL);  //create task
   xTaskCreate(runtimeTask, "clk", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
   xTaskCreate(batteryLevelTask, "blt", configMINIMAL_STACK_SIZE * 2, NULL, 3, NULL);
-  xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE * 15, NULL, 3, NULL);
+  // xTaskCreate(updateScreenTask, "ust", configMINIMAL_STACK_SIZE * 15, NULL, 3, NULL);
   vTaskStartScheduler();
 }
 
