@@ -9,6 +9,7 @@
 #include "splash_screen.h"
 #include <task.h>
 #include "array_utils.h"
+#include "control_drivers.h"
 
 //screen pins
 #define TFT_CLK 52
@@ -85,22 +86,9 @@ void MainControlTask(void* pvParameters) {
   bool previousRiderMode = !riderMode;  // SET IT so it goes into if statement on first loop
   vTaskDelay(pdMS_TO_TICKS(500));       // LET IMU STABILISE
 
-  const double slowKp = 4;
-  const double slowKd = 0;
-
-  const double riderKp = 9;
-  const double riderKi = 0;
-  const double riderKd = 12.5;
-  const double riderSetpoint = 0;
-
   const double boundedRiderKp = 10;
   const double boundedRiderKi = 0.12;
   const double boundedRiderKd = 12.5;
-
-  const double noRiderKp = 9;
-  const double noRiderKi = 0.15;
-  const double noRiderKd = 15;
-  const double noRiderSetpoint = 7.4;
 
   const double LEFT_MOTOR_SCALE = 1;  // 10 percent increase
 
@@ -108,7 +96,6 @@ void MainControlTask(void* pvParameters) {
   double targetKp;
   double ki;
   double kd;
-  bool resetConfig;
   double targetSetpoint;
   double effectiveSetpoint = currentAngle;
 
@@ -124,21 +111,15 @@ void MainControlTask(void* pvParameters) {
   const double smoothKpChange = 0.25;
 
   while (1) {
-    if (previousRiderMode != riderMode) {  //gets activated when you switch rider mode AND FIRST TIME BOOT UP
-      previousRiderMode = riderMode;
-      integral = 0;
-      if (riderMode) {
-        targetSetpoint = riderSetpoint;
-        targetKp = riderKp;
-        kd = riderKd;
-        ki = riderKi;
-      } else {
-        targetSetpoint = noRiderSetpoint;
-        targetKp = noRiderKp;
-        kd = noRiderKd;
-        ki = noRiderKi;
-      }  //if rider is not present
-    }
+    handleChangingRiderMode(
+      &previousRiderMode, 
+      riderMode, 
+      &integral,
+      &targetSetpoint,
+      &targetKp,
+      &kd,
+      &ki);
+    
     
     if(riderMode && (currentAngle > 3 || currentAngle < -3)) {//increase Ki past certain angle thresholds to keep in bounded angles
       targetKp = boundedRiderKp;
@@ -162,7 +143,7 @@ void MainControlTask(void* pvParameters) {
       output = -127;
     }
 
-    if (currentAngle > 50 || currentAngle < -40) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
+    if (currentAngle > 30 || currentAngle < -30) {  // SAFETY CODE TO SHUT DOWN SEGWAY in case extreme angle
       output = 0;
       ST.motor(1, output);
       ST.motor(2, output);
@@ -182,11 +163,6 @@ void MainControlTask(void* pvParameters) {
       leftMotorOutput = output;
       rightMotorOutput = output;
     }
-
-    // if (leftMotorOutput > 0 && leftMotorOutput <= 6) leftMotorOutput = 6;  //motor deadzone
-    // else if (leftMotorOutput <= 0 && leftMotorOutput >= -6) leftMotorOutput = -6;
-    // if (rightMotorOutput > 0 && rightMotorOutput <= 5) rightMotorOutput = 5;
-    // else if (rightMotorOutput <= 0 && rightMotorOutput >= -5) rightMotorOutput = -5;
 
     ST.motor(1, leftMotorOutput * LEFT_MOTOR_SCALE);  // left motor
     ST.motor(2, rightMotorOutput);                    // right motor
