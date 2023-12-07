@@ -265,16 +265,10 @@ void SteeringTask(void* pvParameters) {
     if (lastThreeInputs[0] == 0 && lastThreeInputs[1] == 0 && lastThreeInputs[2] == 0) {
       currentSteering = 0;
     } else if (currentSteering < targetSteering) {
-      currentSteering = min(100, currentSteering + 15);
+      currentSteering = min(100, currentSteering + 8);
     } else if (currentSteering > targetSteering) {
-      currentSteering = max(-100, currentSteering - 15);
+      currentSteering = max(-100, currentSteering - 8);
     }
-
-    // double rightSteering = -1 * (((double)analogRead(rightSteeringPin) - 40.0) * (1.0 / 9.0) - 100);
-    // double leftSteering = -1 * (((double)analogRead(leftSteeringPin) - 14.0) * (1.0 / 9.0) - 100);
-    // steering = rightSteering - leftSteering;                  // ALL LEFT = -100 ALL RIGHT = 100 NONE = 0
-
-
 
     steering = (0.3 - output * 0.0022) * currentSteering;  // 0.3*steering at 0 output and and .1*steering at 90
     //if ((steering <= 20) && (steering >= -20)) steering = 0;  // steering deadzone;
