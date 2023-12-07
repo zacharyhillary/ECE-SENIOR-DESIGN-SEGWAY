@@ -8,6 +8,7 @@
 #include "semphr.h"
 #include "splash_screen.h"
 #include <task.h>
+#include "array_utils.h"
 
 //screen pins
 #define TFT_CLK 52
@@ -46,52 +47,6 @@ double displayAngle;
 
 SoftwareSerial SWSerial(NOT_A_PIN, 16);  // RX on no pin (unused), TX on pin 11 (to S1).
 SabertoothSimplified ST(SWSerial);       // We'll name the Sabertooth object ST.
-
-void pushToArray(int* arrayOfInputs, int nextInput, int arrayLength) {
-  int index = 0;
-  while(index < arrayLength - 1) {
-    arrayOfInputs[index] = arrayOfInputs[index+1];
-    index++;
-  }
-  arrayOfInputs[index] = nextInput;
-}
-
-void pushToDoubleArray(double* arrayOfInputs, double nextInput, int arrayLength) {
-  int index = 0;
-  while(index < arrayLength - 1) { // 0, 1, 2, 3 -> 4
-    arrayOfInputs[index] = arrayOfInputs[index+1];
-    index++;
-  }
-  arrayOfInputs[index] = nextInput; // 4 reassigned down here
-}
-
-bool checkEachLessThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] >= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
-
-bool checkEachGreaterThan(int* array, int value, int arrayLength) {
-    int index = 0;
-    while (index < arrayLength) {
-      if (array[index] <= value) {
-        return false;
-      }
-      index++;
-    }
-    return true;
-}
-
-void clearIntArray(int* array, int arrayLength) {
-  for(int i=0; i<arrayLength; i++) {
-    array[i] = 0;
-  }
-}
 
 void GetAngleTask(void* pvParameters) {
   int motorPower;
@@ -347,14 +302,6 @@ void batteryDebug(int raw, double voltage, double batt) {
   Serial1.print(" Batt: ");
   Serial1.print(batt);
   Serial1.println("[v]");
-}
-
-double avgOfDoubleArray(double* arrayOfInputs, int arrayLength) {
-  double sum = 0.0;
-  for (int i=0; i<arrayLength; i++) {
-    sum = sum + arrayOfInputs[i];
-  }
-  return sum / arrayLength;
 }
 
 //battery level
