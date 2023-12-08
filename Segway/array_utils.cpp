@@ -29,7 +29,29 @@ bool checkEachLessThan(int* array, int value, int arrayLength) {
     return true;
 }
 
+bool checkEachLessThan(double* array, double value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] >= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
 bool checkEachGreaterThan(int* array, int value, int arrayLength) {
+    int index = 0;
+    while (index < arrayLength) {
+      if (array[index] <= value) {
+        return false;
+      }
+      index++;
+    }
+    return true;
+}
+
+bool checkEachGreaterThan(double* array, double value, int arrayLength) {
     int index = 0;
     while (index < arrayLength) {
       if (array[index] <= value) {
@@ -44,6 +66,14 @@ void clearIntArray(int* array, int arrayLength) {
   for(int i=0; i<arrayLength; i++) {
     array[i] = 0;
   }
+}
+
+double avgOfIntArray(int* arrayOfInputs, int arrayLength) {
+  double sum = 0.0;
+  for (int i=0; i<arrayLength; i++) {
+    sum = sum + arrayOfInputs[i];
+  }
+  return sum / arrayLength;
 }
 
 double avgOfDoubleArray(double* arrayOfInputs, int arrayLength) {

@@ -86,11 +86,7 @@ void MainControlTask(void* pvParameters) {
   bool previousRiderMode = !riderMode;  // SET IT so it goes into if statement on first loop
   vTaskDelay(pdMS_TO_TICKS(500));       // LET IMU STABILISE
 
-  const double boundedRiderKp = 10;
-  const double boundedRiderKi = 0.12;
-  const double boundedRiderKd = 12.5;
-
-  const double LEFT_MOTOR_SCALE = 1;  // 10 percent increase
+  const double LEFT_MOTOR_SCALE = 1.07;  // 10 percent increase
 
   double effectiveKp = 0;
   double targetKp;
@@ -110,27 +106,37 @@ void MainControlTask(void* pvParameters) {
   const double smoothAngleChange = 0.1;
   const double smoothKpChange = 0.25;
 
+  bool resetConfig = false;
+
   while (1) {
     handleChangingRiderMode(
       &previousRiderMode, 
       riderMode, 
+      &resetConfig,
       &integral,
       &targetSetpoint,
       &targetKp,
       &kd,
-      &ki);
+      &ki
+    );
     
-    
-    if(riderMode && (currentAngle > 3 || currentAngle < -3)) {//increase Ki past certain angle thresholds to keep in bounded angles
-      targetKp = boundedRiderKp;
-      ki = boundedRiderKi;
-      kd = boundedRiderKd;
-    } else if (riderMode) {
-      integral *= 0.98;
-      targetKp = riderKp;
-      ki = riderKi;
-      kd = riderKd;
-    }
+    handleRiderModeConditions(
+      riderMode,
+      currentAngle,
+      &targetKp,
+      &ki,
+      &kd,
+      &integral
+    );
+
+    // handleRiderlessModeConditions(
+    //   riderMode,
+    //   output,
+    //   &resetConfig,
+    //   &targetSetpoint,
+    //   &targetKp
+    // );
+
     handleSetValueSmoothing(&targetSetpoint, &effectiveSetpoint, smoothAngleChange);
     handleSetValueSmoothing(&targetKp, &effectiveKp, smoothKpChange);
 
